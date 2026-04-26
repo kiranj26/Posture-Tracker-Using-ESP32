@@ -4,8 +4,15 @@
 
 https://github.com/user-attachments/assets/0a654031-a435-47b8-a605-cfffa6a3042a
 
+### Demo Walkthrough
 
-
+1. **Boot** — device powers on, single boot tone confirms audio is working
+2. **Calibration** — ascending 3-note prompt plays; sit upright and hold still for 3 seconds; success arpeggio confirms baseline is locked
+3. **Good posture** — device monitors silently; after 30 seconds of good posture a reward chime plays
+4. **Warning** — deliberately lean forward/sideways beyond 10° for 3 seconds; soft single beep fires
+5. **Bad posture escalation** — hold beyond 20° for 5 seconds; double beep fires, repeating every 8 seconds for 3 cycles
+6. **Voice escalation** — after 3 beeps, "sit up straight" voice clip repeats every 8 seconds until posture is corrected
+7. **Correction** — return to upright posture; "thank you good work" voice clip plays and device resets to monitoring
 
 
 A wearable shoulder-mounted posture tracker. Detects slouching in real time using an
