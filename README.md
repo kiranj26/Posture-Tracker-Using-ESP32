@@ -23,7 +23,10 @@ https://github.com/user-attachments/assets/0a654031-a435-47b8-a605-cfffa6a3042a
 7. **Correction** — return to upright posture; "thank you good work" voice clip plays and device resets to monitoring
 
 ---
+## Future PCB Enclosure
+<img width="728" height="636" alt="Screenshot 2026-04-26 at 5 16 28 PM" src="https://github.com/user-attachments/assets/dacdf1d3-5df1-4292-bc49-a62e706c8d10" />
 
+---
 ## Phase Status
 
 | Phase | Description | Status |
