@@ -15,7 +15,7 @@ IMU sensor and alerts the user through audio feedback.
 | 0 | Toolchain verification + project scaffold | ✅ Complete |
 | 1 | I2C driver + raw IMU data | ✅ Complete |
 | 2 | Angle computation + low-pass filter | ✅ Complete |
-| 3 | I2S driver + speaker output | ⏳ Pending |
+| 3 | I2S driver + speaker output | ✅ Complete |
 | 4 | Calibration system | ⏳ Pending |
 | 5 | Full integration (FreeRTOS + state machine + audio) | ⏳ Pending |
 | 6 | Endurance testing | ⏳ Pending |
@@ -168,6 +168,29 @@ I (43591) MAIN: pitch=   3.25  roll= -26.89
 I (43691) MAIN: pitch=   3.77  roll= -30.55
 I (43791) MAIN: pitch=   4.35  roll= -34.24
 ```
+
+---
+
+## Phase 3 — I2S + Speaker Output (verified on real hardware, 2026-04-26)
+
+MAX98357A wired to ESP32: BCLK→GPIO26, LRC→GPIO25, DIN→GPIO27, VIN→5V.
+
+### Pass criteria met
+- Audible 500Hz boot tone at every power-on — clean, no pop, no distortion ✅
+- No I2S error codes in serial log ✅
+- IMU angle loop continues normally after tone finishes ✅
+
+### Wiring reference
+
+| MAX98357A Pin | ESP32 Pin |
+|---|---|
+| VIN | 5V |
+| GND | GND |
+| BCLK | GPIO 26 |
+| LRC (WS) | GPIO 25 |
+| DIN | GPIO 27 |
+| GAIN | leave floating (9dB) |
+| SD | leave floating (always on) |
 
 ---
 

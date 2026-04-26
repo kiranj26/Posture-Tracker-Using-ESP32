@@ -19,3 +19,7 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # Move partition table to 0x9000 — ESP-IDF 5.x bootloader is ~29KB,
 # which overruns the default 0x8000 offset by ~864 bytes
 CONFIG_PARTITION_TABLE_OFFSET=0x9000
+
+# Suppress legacy I2S driver deprecation warning — we intentionally use
+# driver/i2s.h (legacy API) as specified in CLAUDE.md
+CONFIG_I2S_SUPPRESS_DEPRECATE_WARN=y
