@@ -1,5 +1,6 @@
 #include "config.h"
 #include <string.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/i2c.h"
@@ -7,6 +8,10 @@
 #include "mpu6050.h"
 
 static const char *TAG = "MPU6050";
+
+// EMA filter state — reset via mpu6050_reset_filter() before calibration
+static float prev_pitch = 0.0f;
+static float prev_roll  = 0.0f;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -131,32 +136,54 @@ esp_err_t mpu6050_init(void)
 }
 
 /*
- * Burst-read accelerometer axes and reconstruct signed 16-bit values.
+ * Burst-read accelerometer, compute pitch and roll angles, apply EMA filter.
  *
- * The MPU-6050 stores each axis as two consecutive 8-bit registers:
- *   ACCEL_XOUT_H (high byte) | ACCEL_XOUT_L (low byte)
- * Combine with: (H << 8) | L  → signed int16_t
+ * Raw pipeline:
+ *   int16 → divide by 16384 → g units → atan2f → degrees → EMA filter
  *
- * At ±2g range, 1g = 16384 LSB.
- * Expected when lying flat: ax≈0, ay≈0, az≈±16384
+ * Angle formulas (accel-only, gravity vector):
+ *   pitch = atan2(gx, sqrt(gy² + gz²)) * 180/π  — forward/backward tilt
+ *   roll  = atan2(gy, gz) * 180/π               — sideways tilt
+ *
+ * EMA filter: output = alpha * new + (1 - alpha) * prev
+ * LPF_ALPHA = 0.15 → strong smoothing, ~1s to converge from cold start.
+ *
+ * Note: sensor sits at ~45° on breadboard so resting values are non-zero.
+ * Phase 4 calibration captures the resting angle as baseline — this is correct.
  */
-esp_err_t mpu6050_read_raw(int16_t *ax, int16_t *ay, int16_t *az)
+esp_err_t mpu6050_read_angles(float *pitch, float *roll)
 {
     uint8_t buf[6];
     esp_err_t ret = mpu6050_read_regs(MPU_REG_ACCEL_XOUT_H, buf, 6);
     if (ret != ESP_OK) return ret;
 
-    *ax = (int16_t)((buf[0] << 8) | buf[1]);
-    *ay = (int16_t)((buf[2] << 8) | buf[3]);
-    *az = (int16_t)((buf[4] << 8) | buf[5]);
+    int16_t raw_ax = (int16_t)((buf[0] << 8) | buf[1]);
+    int16_t raw_ay = (int16_t)((buf[2] << 8) | buf[3]);
+    int16_t raw_az = (int16_t)((buf[4] << 8) | buf[5]);
+
+    float gx = raw_ax / MPU_ACCEL_SENSITIVITY;
+    float gy = raw_ay / MPU_ACCEL_SENSITIVITY;
+    float gz = raw_az / MPU_ACCEL_SENSITIVITY;
+
+    float raw_pitch = atan2f(gx, sqrtf(gy * gy + gz * gz)) * (180.0f / M_PI);
+    float raw_roll  = atan2f(gy, gz) * (180.0f / M_PI);
+
+    // Exponential moving average — smooths sensor noise, attenuates vibration
+    *pitch = LPF_ALPHA * raw_pitch + (1.0f - LPF_ALPHA) * prev_pitch;
+    *roll  = LPF_ALPHA * raw_roll  + (1.0f - LPF_ALPHA) * prev_roll;
+
+    prev_pitch = *pitch;
+    prev_roll  = *roll;
+
     return ESP_OK;
 }
 
 /*
- * Reset low-pass filter state — stub kept for API compatibility with Phase 2+.
- * Phase 1 has no filter, so this is a no-op.
+ * Reset low-pass filter state to zero.
+ * Call before starting calibration to flush stale filter history.
  */
 void mpu6050_reset_filter(void)
 {
-    // no filter state in Phase 1 — implemented in Phase 2
+    prev_pitch = 0.0f;
+    prev_roll  = 0.0f;
 }

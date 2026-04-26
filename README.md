@@ -14,7 +14,7 @@ IMU sensor and alerts the user through audio feedback.
 |---|---|---|
 | 0 | Toolchain verification + project scaffold | ✅ Complete |
 | 1 | I2C driver + raw IMU data | ✅ Complete |
-| 2 | Angle computation + low-pass filter | 🔄 Next |
+| 2 | Angle computation + low-pass filter | ✅ Complete |
 | 3 | I2S driver + speaker output | ⏳ Pending |
 | 4 | Calibration system | ⏳ Pending |
 | 5 | Full integration (FreeRTOS + state machine + audio) | ⏳ Pending |
@@ -98,6 +98,75 @@ I (43377) MAIN: ax=  6540  ay=    70  az=  9646
 I (52677) MAIN: ax= -7628  ay=    22  az=  8708
 I (52777) MAIN: ax= -7726  ay=    10  az=  8618
 I (52877) MAIN: ax= -7832  ay=    12  az=  8566
+```
+
+---
+
+## Phase 2 — Angle Output (verified on real hardware, 2026-04-25)
+
+Sensor sitting at the same ~45° breadboard angle from Phase 1.
+EMA filter (alpha=0.15) applied. Resting values are non-zero by design —
+Phase 4 calibration will capture these as baseline.
+
+### Resting values (sensor still on breadboard)
+```
+pitch ≈ +1.3°  roll ≈ +0.2°   (fluctuation < ±0.3°)
+```
+
+### Verified angle ranges
+
+| Movement | Axis | Direction | Observed range | Pass threshold |
+|---|---|---|---|---|
+| Tilt left | pitch | large positive | up to **+86°** | >10° |
+| Tilt right | pitch | large negative | down to **-87°** | >10° |
+| Nose up (takeoff) | roll | large positive | up to **+176°** | >10° |
+| Nose down (landing) | roll | large negative | down to **-86°** | >10° |
+
+### Quick reference
+```
+pitch large +  →  tilted LEFT
+pitch large -  →  tilted RIGHT
+roll  large +  →  nose up  (takeoff)
+roll  large -  →  nose down (landing)
+```
+
+### Filter behaviour
+- Convergence after tilt release: ~10–15 samples (1–1.5 seconds) ✅
+- At-rest noise floor: < ±0.3° ✅
+
+### Raw data sample — sensor at rest
+```
+I (9591) MAIN: pitch=   1.65  roll=   0.47
+I (9691) MAIN: pitch=   1.73  roll=   0.26
+I (9791) MAIN: pitch=   1.72  roll=   0.25
+```
+
+### Raw data sample — tilt left (pitch large positive)
+```
+I (16591) MAIN: pitch=  37.51  roll=   0.07
+I (16691) MAIN: pitch=  39.49  roll=   0.15
+I (16791) MAIN: pitch=  41.74  roll=   0.26
+```
+
+### Raw data sample — tilt right (pitch large negative)
+```
+I (26591) MAIN: pitch= -63.62  roll=   1.35
+I (26691) MAIN: pitch= -66.73  roll=   1.79
+I (26791) MAIN: pitch= -69.72  roll=   2.40
+```
+
+### Raw data sample — nose up / takeoff (roll large positive)
+```
+I (33591) MAIN: pitch=   1.06  roll=  34.53
+I (33691) MAIN: pitch=   1.49  roll=  36.91
+I (33791) MAIN: pitch=   1.86  roll=  39.22
+```
+
+### Raw data sample — nose down / landing (roll large negative)
+```
+I (43591) MAIN: pitch=   3.25  roll= -26.89
+I (43691) MAIN: pitch=   3.77  roll= -30.55
+I (43791) MAIN: pitch=   4.35  roll= -34.24
 ```
 
 ---
