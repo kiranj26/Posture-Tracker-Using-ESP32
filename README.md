@@ -1,10 +1,18 @@
 # Posture Tracker — ESP32 + MPU-6050
 
+A wearable shoulder-mounted posture tracker. Detects slouching in real time using an
+IMU sensor and alerts the user through audio feedback.
+
+**Hardware:** ESP32 Mini Dev Kit · GY-521 (MPU-6050) · Adafruit MAX98357A · 3W 4Ω speaker  
+**Stack:** ESP-IDF 5.5.0 · PlatformIO · C only (no Arduino, no C++)
+
+---
+
 ## Demo
 
 https://github.com/user-attachments/assets/0a654031-a435-47b8-a605-cfffa6a3042a
 
-### Demo Walkthrough
+### Walkthrough
 
 1. **Boot** — device powers on, single boot tone confirms audio is working
 2. **Calibration** — ascending 3-note prompt plays; sit upright and hold still for 3 seconds; success arpeggio confirms baseline is locked
@@ -13,13 +21,6 @@ https://github.com/user-attachments/assets/0a654031-a435-47b8-a605-cfffa6a3042a
 5. **Bad posture escalation** — hold beyond 20° for 5 seconds; double beep fires, repeating every 8 seconds for 3 cycles
 6. **Voice escalation** — after 3 beeps, "sit up straight" voice clip repeats every 8 seconds until posture is corrected
 7. **Correction** — return to upright posture; "thank you good work" voice clip plays and device resets to monitoring
-
-
-A wearable shoulder-mounted posture tracker. Detects slouching in real time using an
-IMU sensor and alerts the user through audio feedback.
-
-**Hardware:** ESP32 Mini Dev Kit · GY-521 (MPU-6050) · Adafruit MAX98357A · 3W 4Ω speaker  
-**Stack:** ESP-IDF 5.5.0 · PlatformIO · C only (no Arduino, no C++)
 
 ---
 
@@ -33,7 +34,7 @@ IMU sensor and alerts the user through audio feedback.
 | 3 | I2S driver + speaker output | ✅ Complete |
 | 4 | Calibration system | ✅ Complete |
 | 5 | Full integration (FreeRTOS + state machine + audio) | ✅ Complete |
-| 6 | Endurance testing | ⏳ Pending |
+| 6 | Endurance testing | ✅ Complete |
 
 ---
 

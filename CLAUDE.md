@@ -902,7 +902,7 @@ Each phase has a strict entry condition (what must be true before starting) and 
 
 ---
 
-### Phase 6 — Endurance Test
+### Phase 6 — Endurance Test ✅ COMPLETE
 **Goal:** Confirm stability for real-world sessions.
 
 **Entry condition:** Phase 5 passed.
