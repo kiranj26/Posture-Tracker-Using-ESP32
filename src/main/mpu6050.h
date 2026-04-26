@@ -1,7 +1,8 @@
 #pragma once
 
+#include <stdint.h>
 #include "esp_err.h"
 
 esp_err_t mpu6050_init(void);
-esp_err_t mpu6050_read_angles(float *pitch, float *roll);
+esp_err_t mpu6050_read_raw(int16_t *ax, int16_t *ay, int16_t *az);
 void      mpu6050_reset_filter(void);
