@@ -1,0 +1,21 @@
+# Keep both cores active (dual-core ESP32)
+CONFIG_FREERTOS_UNICORE=n
+
+# app_main needs stack room for init + calibration
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Better float math performance for atan2f
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Stable I2C interrupt handling under FreeRTOS
+CONFIG_I2C_ISR_IRAM_SAFE=y
+
+# WiFi OFF — saves ~100KB RAM, not used in MVP
+CONFIG_ESP_WIFI_ENABLED=n
+
+# Flash size — must match board (ESP32 Mini Dev Kit has 4MB)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# Move partition table to 0x9000 — ESP-IDF 5.x bootloader is ~29KB,
+# which overruns the default 0x8000 offset by ~864 bytes
+CONFIG_PARTITION_TABLE_OFFSET=0x9000
