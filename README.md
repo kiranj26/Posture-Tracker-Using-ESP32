@@ -16,7 +16,7 @@ IMU sensor and alerts the user through audio feedback.
 | 1 | I2C driver + raw IMU data | ✅ Complete |
 | 2 | Angle computation + low-pass filter | ✅ Complete |
 | 3 | I2S driver + speaker output | ✅ Complete |
-| 4 | Calibration system | ⏳ Pending |
+| 4 | Calibration system | ✅ Complete |
 | 5 | Full integration (FreeRTOS + state machine + audio) | ⏳ Pending |
 | 6 | Endurance testing | ⏳ Pending |
 
@@ -168,6 +168,28 @@ I (43591) MAIN: pitch=   3.25  roll= -26.89
 I (43691) MAIN: pitch=   3.77  roll= -30.55
 I (43791) MAIN: pitch=   4.35  roll= -34.24
 ```
+
+---
+
+## Phase 4 — Calibration System (verified on real hardware, 2026-04-26)
+
+### Key design decision — pitch-only stddev validation
+`roll = atan2(gy, gz)` is numerically unstable when the sensor is vertical
+(gz ≈ 0), e.g. mounted on a human back. Even with sensor perfectly still,
+roll stddev reads ~11° at 90° mounting due to formula singularity. Pitch
+`= atan2(gx, sqrt(gy²+gz²))` has no singularity — stable at every orientation.
+Calibration validity check uses pitch stddev only.
+
+### Pass criteria met — verified in both mounting orientations
+
+| Orientation | Cal pitch_stddev | Result |
+|---|---|---|
+| Flat on desk | 0.38° | ✅ Accepted |
+| Vertical (like human back, roll≈90°) | 0.93° | ✅ Accepted |
+
+- Prompt tones → 3s collection → success arpeggio → baseline locked ✅
+- Deliberate movement during calibration → fail tone → auto-retry ✅
+- Baseline consistent across repeated calibrations ✅
 
 ---
 
