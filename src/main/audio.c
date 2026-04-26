@@ -10,6 +10,7 @@
 static const char *TAG = "AUDIO";
 
 #include "voice/sit_up_wav.h"
+#include "voice/thank_you_good_work_wav.h"
 
 // ── Tone sequence definitions ─────────────────────────────────────────────────
 // Static — internal to this file. Not exposed via header.
@@ -209,7 +210,7 @@ void task_audio(void *arg)
                 audio_play_sequence(TONES_REWARD, 3);
                 break;
             case AUDIO_CMD_CORRECTION_CONFIRM:
-                audio_play_sequence(TONES_CONFIRM, 2);
+                audio_play_wav(thank_you_good_work_wav_data, thank_you_good_work_wav_len);
                 break;
             case AUDIO_CMD_STOP:
                 break;

@@ -5,6 +5,7 @@ idf_component_register(
         "audio.c"
         "posture_fsm.c"
         "voice/sit_up_wav.c"
+        "voice/thank_you_good_work_wav.c"
     INCLUDE_DIRS "."
 )
 
