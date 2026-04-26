@@ -563,7 +563,7 @@ CONFIG_ADC_CAL_LUT_ENABLE=y
 #
 # Legacy I2S Driver Configurations
 #
-# CONFIG_I2S_SUPPRESS_DEPRECATE_WARN is not set
+CONFIG_I2S_SUPPRESS_DEPRECATE_WARN=y
 # CONFIG_I2S_SKIP_LEGACY_CONFLICT_CHECK is not set
 # end of Legacy I2S Driver Configurations
 

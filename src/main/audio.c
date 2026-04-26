@@ -9,6 +9,9 @@
 
 static const char *TAG = "AUDIO";
 
+#include "voice/sit_up_wav.h"
+#include "voice/thank_you_good_work_wav.h"
+
 // ── Tone sequence definitions ─────────────────────────────────────────────────
 // Static — internal to this file. Not exposed via header.
 
@@ -130,22 +133,90 @@ void audio_play_sequence(const tone_t *tones, uint8_t count)
 
 /*
  * Play a raw PCM WAV file embedded in flash.
- * Skips the 44-byte WAV header, writes remaining PCM bytes directly to I2S.
- * Fully implemented in Phase 5 — stub here to satisfy linker.
+ * Skips the standard 44-byte WAV header, writes remaining PCM to I2S in chunks.
+ *
+ * Switches I2S clock to WAV_SAMPLE_RATE_HZ (16kHz) before playback and
+ * restores to I2S_SAMPLE_RATE_HZ (44.1kHz) after — prevents chipmunk effect
+ * from playing a 16kHz recording through a 44.1kHz configured driver.
  */
 void audio_play_wav(const uint8_t *data, uint32_t len)
 {
-    (void)data; (void)len;
-    ESP_LOGI(TAG, "audio_play_wav — implemented in Phase 5");
+    if (len < 44) {
+        ESP_LOGW(TAG, "WAV too short: %lu bytes", (unsigned long)len);
+        return;
+    }
+
+    // Switch to WAV sample rate for correct playback speed
+    i2s_set_clk(I2S_PORT_NUM, WAV_SAMPLE_RATE_HZ,
+                I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
+
+    const uint8_t *pcm     = data + 44;
+    uint32_t       pcm_len = len  - 44;
+    size_t         written;
+    uint32_t       offset  = 0;
+
+    while (offset < pcm_len) {
+        uint32_t chunk = pcm_len - offset;
+        if (chunk > (uint32_t)(I2S_DMA_BUF_LEN_SMPLS * 2))
+            chunk = (uint32_t)(I2S_DMA_BUF_LEN_SMPLS * 2);
+        i2s_write(I2S_PORT_NUM, pcm + offset, chunk, &written, pdMS_TO_TICKS(200));
+        offset += written;
+    }
+
+    // Restore to tone sample rate
+    i2s_set_clk(I2S_PORT_NUM, I2S_SAMPLE_RATE_HZ,
+                I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
 }
 
 /*
- * FreeRTOS audio player task — blocks on audio queue, dispatches commands.
- * Fully implemented in Phase 5 — stub here to satisfy linker.
+ * FreeRTOS audio player task — blocks on g_audio_queue, dispatches commands.
+ * Runs on Core 1 to keep I2S DMA isolated from the IMU/FSM tasks on Core 0.
  */
 void task_audio(void *arg)
 {
     (void)arg;
-    ESP_LOGI(TAG, "task_audio — implemented in Phase 5");
-    vTaskDelete(NULL);
+    ESP_LOGI(TAG, "Audio task started");
+
+    // g_audio_queue is defined in main.c — accessible via posture_fsm.h extern
+    extern QueueHandle_t g_audio_queue;
+
+    audio_cmd_t cmd;
+    for (;;) {
+        if (xQueueReceive(g_audio_queue, &cmd, portMAX_DELAY) != pdTRUE) continue;
+
+        switch (cmd.type) {
+            case AUDIO_CMD_BOOT_READY:
+                audio_play_sequence(TONES_BOOT, 1);
+                break;
+            case AUDIO_CMD_CAL_PROMPT:
+                audio_play_sequence(TONES_CAL_PROMPT, 3);
+                break;
+            case AUDIO_CMD_CAL_SUCCESS:
+                audio_play_sequence(TONES_CAL_OK, 3);
+                break;
+            case AUDIO_CMD_CAL_FAIL:
+                audio_play_sequence(TONES_CAL_FAIL, 2);
+                break;
+            case AUDIO_CMD_WARN_BEEP:
+                audio_play_sequence(TONES_WARN, 1);
+                break;
+            case AUDIO_CMD_BAD_ALERT:
+                audio_play_sequence(TONES_BAD, 2);
+                break;
+            case AUDIO_CMD_VOICE_CLIP:
+                audio_play_wav(sit_up_wav_data, sit_up_wav_len);
+                break;
+            case AUDIO_CMD_REWARD_CHIME:
+                audio_play_sequence(TONES_REWARD, 3);
+                break;
+            case AUDIO_CMD_CORRECTION_CONFIRM:
+                audio_play_wav(thank_you_good_work_wav_data, thank_you_good_work_wav_len);
+                break;
+            case AUDIO_CMD_STOP:
+                break;
+            default:
+                ESP_LOGW(TAG, "Unknown audio command: %d", cmd.type);
+                break;
+        }
+    }
 }

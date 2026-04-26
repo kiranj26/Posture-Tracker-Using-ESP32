@@ -17,7 +17,7 @@ IMU sensor and alerts the user through audio feedback.
 | 2 | Angle computation + low-pass filter | ✅ Complete |
 | 3 | I2S driver + speaker output | ✅ Complete |
 | 4 | Calibration system | ✅ Complete |
-| 5 | Full integration (FreeRTOS + state machine + audio) | ⏳ Pending |
+| 5 | Full integration (FreeRTOS + state machine + audio) | ✅ Complete |
 | 6 | Endurance testing | ⏳ Pending |
 
 ---
@@ -168,6 +168,32 @@ I (43591) MAIN: pitch=   3.25  roll= -26.89
 I (43691) MAIN: pitch=   3.77  roll= -30.55
 I (43791) MAIN: pitch=   4.35  roll= -34.24
 ```
+
+---
+
+## Phase 5 — Full Integration (verified on real hardware, 2026-04-26)
+
+Three FreeRTOS tasks running concurrently:
+- **Task A (IMU, Core 0, prio 5):** reads angles every 100ms, writes to `g_imu_data` under mutex, sets event group bit
+- **Task B (FSM, Core 0, prio 4):** blocks on event group, evaluates posture state machine, enqueues audio commands
+- **Task C (Audio, Core 1, prio 3):** blocks on queue, dispatches tone sequences and WAV playback
+
+### Escalation sequence when in BAD state
+
+| Time in BAD | Audio |
+|---|---|
+| Entry | Double beep |
+| +8s | Double beep (escalation 2) |
+| +16s | Double beep (escalation 3) |
+| +24s onwards | "Sit up straight" voice clip, repeating every 8s until corrected |
+
+Correcting posture at any point → 2-note confirm tone → RESET → GOOD.
+
+### Key implementation notes
+- WAV playback switches I2S clock to 16kHz then back to 44.1kHz — prevents chipmunk effect
+- WAV embedded as C array (`sit_up_wav.c`) — `EMBED_FILES` not supported by PlatformIO ESP-IDF build
+- Calibration validates pitch stddev only — roll singularity at vertical mounting (gz≈0) excluded
+- FSM never calls `vTaskDelay()` — all timing via `esp_timer_get_time()`
 
 ---
 
