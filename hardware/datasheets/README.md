@@ -6,15 +6,15 @@ Drop all component datasheets here as PDFs. One file per component.
 
 | Component | Filename | Status |
 |---|---|---|
-| ESP32-S3-MINI-1U | esp32-s3-mini-1u_datasheet.pdf | ⬜ Not downloaded |
-| MPU-6050 | mpu6050_datasheet.pdf | ⬜ Not downloaded |
-| DRV2605L | drv2605l_datasheet.pdf | ⬜ Not downloaded |
-| MAX98357A | max98357a_datasheet.pdf | ⬜ Not downloaded |
-| MCP73831 | mcp73831_datasheet.pdf | ⬜ Not downloaded |
-| AP2112K-3.3 | ap2112k_datasheet.pdf | ⬜ Not downloaded |
-| Vybronics VG1030001XH | vg1030001xh_datasheet.pdf | ⬜ Not downloaded |
-| GCT USB4135-GF-A | usb4135_datasheet.pdf | ⬜ Not downloaded |
-| Alps SKRPABE010 | skrpabe010_datasheet.pdf | ⬜ Not downloaded |
+| ESP32-S3-MINI-1U | esp32-s3-mini-1_mini-1u_datasheet_en.pdf | ✅ Downloaded |
+| MPU-6050 | mpu6050_datasheet.pdf | ⬜ Still needed |
+| DRV2605L | drv2605l.pdf | ✅ Downloaded |
+| MAX98357A | MAX98357A-MAX98357B.pdf | ✅ Downloaded |
+| MCP73831 | MCP73831.pdf | ✅ Downloaded |
+| AP2112K-3.3 | ap2112k_datasheet.pdf | ⬜ Still needed |
+| Vybronics VG1030001XH | vg1030001xh_datasheet.pdf | ⬜ Still needed |
+| GCT USB4135-GF-A | usb4135_datasheet.pdf | ⬜ Still needed |
+| Alps SKRPABE010 | skrpabe010_datasheet.pdf | ⬜ Still needed |
 
 ## Where to download
 

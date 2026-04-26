@@ -18,6 +18,7 @@ Export JLCPCB-formatted BOM from KiCad when schematic is complete.
 | M1 | LRA motor | Vybronics VG1030001XH | Digikey 1670-VG1030001XH-ND | $2.96 | ✅ Ordered × 3 |
 | LS1 | 20mm 8Ω 1W speaker | MECCANIXITY 20mm | Amazon | $2.12 | ✅ Ordered × 4 |
 | BT1 | 350mAh LiPo | Adafruit #2750 | Digikey 1528-1858-ND | $6.95 | ✅ Ordered × 2 |
+| — | LiPo charger breakout | Adafruit #1904 | adafruit.com | $6.95 | ✅ Ordered × 1 — Phase 9 validation only, not on PCB |
 | J1 | USB-C connector | GCT USB4135-GF-A | Digikey 2073-USB4135-GF-ACT-ND | $0.40 | ⬜ Not ordered |
 | J2 | JST-PH 2-pin | JST-PH | Digikey 455-1719-ND | $0.10 | ⬜ Not ordered |
 | SW1 | Button BOOT/CAL | Alps SKRPABE010 | Digikey SKRPABE010CT-ND | $0.10 | ⬜ Not ordered |
