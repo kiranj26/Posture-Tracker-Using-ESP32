@@ -34,8 +34,8 @@
 #define LPF_ALPHA               0.15f       // EMA coefficient — lower = smoother
 
 // ── Calibration ───────────────────────────────────────────────────────────
-#define CAL_TOTAL_SAMPLES       300         // 3 seconds at 100ms per sample
-#define CAL_DISCARD_SAMPLES     50          // Discard first 500ms (sensor settle)
+#define CAL_TOTAL_SAMPLES       30          // 3 seconds at 100ms per sample
+#define CAL_DISCARD_SAMPLES     5           // Discard first 500ms (filter settle)
 #define CAL_MAX_STDDEV_DEG      5.0f        // Reject cal if stddev exceeds this
 #define CAL_VALID_SAMPLES       (CAL_TOTAL_SAMPLES - CAL_DISCARD_SAMPLES)
 
