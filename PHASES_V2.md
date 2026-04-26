@@ -8,6 +8,85 @@
 
 ---
 
+## Hardware Procurement Log
+
+All components confirmed and ordered as of 2026-04-26. Documented here so
+future sessions know exactly what hardware is in hand and why each part was chosen.
+
+### Ordered — In Transit
+
+| Item | Source | Order Ref | Qty | Unit Cost | Phase | Status |
+|---|---|---|---|---|---|---|
+| Adafruit DRV2605L breakout #2305 | Adafruit | — | 1 | $7.95 | 7 | 🚚 In transit |
+| MECCANIXITY 20mm 8Ω 1W speaker | Amazon | — | 4pk | $8.49 | 8 | 🚚 In transit |
+| Vybronics VG1030001XH LRA motor | Digikey | 1670-VG1030001XH-ND | 3 | $2.96 | 7 | 🚚 In transit |
+| Adafruit 350mAh LiPo #2750 | Digikey | 1528-1858-ND | 2 | $6.95 | 9 | 🚚 In transit |
+
+### Component Selection Rationale
+
+**Haptic Driver — Adafruit DRV2605L breakout #2305**
+- Chosen because: breakout board handles all support components (pull-ups, caps)
+- Shares existing I2C bus with MPU-6050 — no new GPIO pins
+- I2C address 0x5A — no conflict with MPU-6050 at 0x68
+- 123 built-in LRA waveform library — no waveform generation in firmware
+- For Phase 7 breadboard only — bare DRV2605LDGSR IC goes on PCB V2
+
+**LRA Motor — Vybronics VG1030001XH (Digikey 1670-VG1030001XH-ND)**
+- 10mm diameter, LRA Z-axis — correct axis for wearable (vibrates into skin)
+- 2VAC rated, 210Hz resonant frequency — DRV2605L auto-tracks resonance
+- 1.5G vibration force — strong enough to feel through clothing
+- **Wire leads pre-attached** — plugs directly into DRV2605L breakout, no soldering thin wire
+- Active part, not discontinued — safe to design PCB V2 around
+- Ordered qty 3: 1 for Phase 7 breadboard, 2 spares
+
+**Speaker — MECCANIXITY 20mm 8Ω 1W (Amazon)**
+- 20mm diameter — minimum size for intelligible voice clip playback
+- 8Ω — matches MAX98357A V2 configuration (changed from 4Ω in V1)
+- 1W — adequate for escalation alerts at 0.5–1 metre
+- Pre-soldered 100mm wires — plug straight into MAX98357A output terminals
+- 4 pack — 1 for Phase 8 testing, 3 spares / PCB V2 candidates
+- Arrives Friday May 1 — Phase 8 can start immediately on arrival
+
+**Battery — Adafruit #2750 350mAh LiPo (Digikey 1528-1858-ND)**
+- 350mAh at 3.7V — gives 12–15 hour real-world runtime (calculated in CLAUDE_V2.md §6)
+- Dimensions 36×20×5.6mm — fits behind 45×35mm PCB with 1mm clearance each side
+- JST-PH connector — matches MCP73831 charging circuit connector standard
+- Built-in PCM protection circuit — prevents overcharge, overdischarge, short circuit
+- Ordered qty 2: 1 for Phase 9 validation, 1 spare
+
+### Still To Order (Phase 10 — after Phases 7–9 validated)
+
+These are NOT ordered yet. Order only after Phase 7, 8, 9 pass criteria are confirmed
+on breadboard. Ordering early risks buying parts that need to change.
+
+| Item | Digikey Part # | Qty | Phase |
+|---|---|---|---|
+| ESP32-S3-MINI-1U-N8 | 1965-ESP32-S3-MINI-1U-N8CT-ND | 3 | 10 |
+| MPU-6050 bare IC | 1428-1011-1-ND | 3 | 10 |
+| DRV2605LDGSR bare IC | 296-43883-1-ND | 3 | 10 |
+| MAX98357AEWL bare IC | MAX98357AEWL+CT-ND | 3 | 10 |
+| MCP73831T-2ACI/OT | MCP73831T-2ACI/OTCT-ND | 3 | 10 |
+| AP2112K-3.3TRG1 | AP2112K-3.3TRG1DICT-ND | 3 | 10 |
+| GCT USB4135-GF-A USB-C | 2073-USB4135-GF-ACT-ND | 3 | 10 |
+| Alps SKRPABE010 buttons | SKRPABE010CT-ND | 6 | 10 |
+| JST-PH 2-pin connector | 455-1719-ND | 3 | 10 |
+| 4.7kΩ 0402 resistor | 311-4.7KLRCT-ND | 50 | 10 |
+| 10kΩ 0402 resistor | 311-10.0KLRCT-ND | 50 | 10 |
+| 5.1kΩ 0402 resistor | 311-5.10KLRCT-ND | 50 | 10 |
+| 1kΩ 0402 resistor | 311-1.00KLRCT-ND | 50 | 10 |
+| 100nF 0402 cap | 311-1375-1-ND | 50 | 10 |
+| 10µF 0805 cap | 399-8419-1-ND | 20 | 10 |
+| 22µF 0805 cap | 399-8423-1-ND | 10 | 10 |
+| 1µF 0402 cap | 311-1543-1-ND | 20 | 10 |
+| 500mA polyfuse 0805 | MINISMDC050F/24-2CT-ND | 5 | 10 |
+| Green LED 0402 | 160-1446-1-ND | 10 | 10 |
+
+> **Before ordering Phase 10 parts:** verify every Digikey part number in browser.
+> Part numbers above are correct at time of writing (2026-04-26) but may change.
+> Always confirm description matches before adding to cart.
+
+---
+
 ## Phase Map
 
 ```
@@ -15,6 +94,9 @@ Phase 7 ──► Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 1
 Haptics     Speaker     Battery      PCB V2        Enclosure
 breadboard  swap        system       fabrication   + full
 validation  validation  validation                 integration
+
+  ⏳ Next    📦 Parts    📦 Parts     ⏳ Pending    ⏳ Pending
+             ordered     ordered
 ```
 
 ---
@@ -557,13 +639,13 @@ shoulder clip, battery connected, all features functional. This is the V2 produc
 
 ## Phase Summary Table
 
-| Phase | Description | Branch | Status |
-|---|---|---|---|
-| 7 | Haptic validation — breadboard | `feature/haptics` | ⏳ Next |
-| 8 | Speaker swap validation | `feature/speaker-swap` | ⏳ Pending |
-| 9 | Battery system validation | `feature/power-system` | ⏳ Pending |
-| 10 | PCB V2 design + fabrication | `feature/pcb-v2` | ⏳ Pending |
-| 11 | Full integration + enclosure | `feature/enclosure` | ⏳ Pending |
+| Phase | Description | Branch | Status | Hardware |
+|---|---|---|---|---|
+| 7 | Haptic validation — breadboard | `feature/haptics` | ⏳ Next | 📦 Parts ordered |
+| 8 | Speaker swap validation | `feature/speaker-swap` | ⏳ Next | 📦 Parts ordered |
+| 9 | Battery system validation | `feature/power-system` | ⏳ Pending | 📦 Parts ordered |
+| 10 | PCB V2 design + fabrication | `feature/pcb-v2` | ⏳ Pending | 🛒 Order after Phase 9 |
+| 11 | Full integration + enclosure | `feature/enclosure` | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
 

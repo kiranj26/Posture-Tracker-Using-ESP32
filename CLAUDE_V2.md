@@ -154,9 +154,14 @@ Write 0x01 to 0x0C           (GO — fire the waveform)
 
 ---
 
-### 3.4 LRA Motor — 10mm Linear Resonant Actuator
+### 3.4 LRA Motor — Vybronics VG1030001XH ✅ Confirmed & Ordered 2026-04-26
 
-**Part:** Jinlong Z10SC2B or equivalent 10×2.7mm LRA
+**Part:** Vybronics VG1030001XH — Digikey 1670-VG1030001XH-ND
+- 10mm diameter, Z-axis LRA
+- 2VAC rated, 210Hz resonant frequency, 1.5G force
+- Pre-attached wire leads — no soldering to contact pads required
+- Active part, not discontinued — PCB V2 safe to design around
+- Ordered qty 3: 1 for Phase 7 breadboard, 2 spares
 
 **Why LRA over ERM coin motor:**
 - ERM: crude sustained buzz, no pattern differentiation
@@ -295,13 +300,13 @@ Both buttons: GPIO with internal pull-up enabled, active low.
 | U4 | Audio amp | MAX98357AEWL | WLP-16 | 1 | $1.50 | Needs reflow |
 | U5 | LiPo charger | MCP73831T-2ACI/OT | SOT-23-5 | 1 | $0.25 | |
 | U6 | LDO 3.3V | AP2112K-3.3TRG1 | SOT-23-5 | 1 | $0.15 | 600mA |
-| M1 | LRA motor | Jinlong Z10SC2B | — | 1 | $1.50 | 10mm, 2.7mm thick |
-| LS1 | Speaker | CMS-2009-SMT-TR | SMD | 1 | $0.80 | 20mm, 8Ω, 0.5W |
+| M1 | LRA motor | Vybronics VG1030001XH | — | 1 | $2.96 | 10mm, LRA, 210Hz, wire leads — confirmed 2026-04-26 |
+| LS1 | Speaker | MECCANIXITY 20mm 8Ω 1W | SMD | 1 | $2.12 | 20mm, 8Ω, 1W — confirmed 2026-04-26 |
 | J1 | USB-C | GCT USB4135-GF-A | SMD | 1 | $0.40 | 2.0 only |
 | J2 | Battery | JST-PH 2-pin | THT | 1 | $0.10 | Keyed, 2mm pitch |
 | SW1 | Button BOOT/CAL | Alps SKRPABE010 | SMD | 1 | $0.10 | |
 | SW2 | Button SNOOZE | Alps SKRPABE010 | SMD | 1 | $0.10 | |
-| BT1 | LiPo 350mAh | Generic 352535 | — | 1 | $2.00 | PCM protected |
+| BT1 | LiPo 350mAh | Adafruit #2750 | — | 1 | $6.95 | PCM protected, JST-PH, 36×20×5.6mm — confirmed 2026-04-26 |
 | R1,R2 | I2C pull-up 4.7kΩ | — | 0402 | 2 | $0.01 | SDA, SCL |
 | R3 | MCP73831 PROG | 10kΩ | 0402 | 1 | $0.01 | Sets 100mA charge |
 | R4,R5 | USB-C CC | 5.1kΩ | 0402 | 2 | $0.01 | Both CC pins |

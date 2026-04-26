@@ -149,13 +149,13 @@ USB-C and buttons accessible on edges.
 
 ## Development Phases
 
-| Phase | Description | Status |
-|---|---|---|
-| 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next |
-| 8 | Speaker swap validation (20mm, 0.5W) | ⏳ Pending |
-| 9 | Battery system validation (MCP73831 + AP2112K) | ⏳ Pending |
-| 10 | PCB V2 design + fabrication (JLCPCB) | ⏳ Pending |
-| 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending |
+| Phase | Description | Status | Hardware |
+|---|---|---|---|
+| 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next | 📦 Parts ordered |
+| 8 | Speaker swap validation (20mm 8Ω 1W) | ⏳ Next | 📦 Parts ordered |
+| 9 | Battery system validation (MCP73831 + LiPo) | ⏳ Pending | 📦 Parts ordered |
+| 10 | PCB V2 design + fabrication (JLCPCB) | ⏳ Pending | 🛒 Order after Phase 9 |
+| 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
 
