@@ -1,5 +1,10 @@
 # Posture Tracker — ESP32 + MPU-6050
 
+## Demo
+
+<!-- Drop demo video here -->
+https://github.com/user-attachments/assets/REPLACE_WITH_VIDEO_ASSET_ID
+
 A wearable shoulder-mounted posture tracker. Detects slouching in real time using an
 IMU sensor and alerts the user through audio feedback.
 
