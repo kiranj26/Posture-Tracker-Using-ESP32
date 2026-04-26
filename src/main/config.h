@@ -25,6 +25,7 @@
 #define I2S_WS_IO               25
 #define I2S_DOUT_IO             27
 #define I2S_SAMPLE_RATE_HZ      44100
+#define WAV_SAMPLE_RATE_HZ      16000       // sit_up.wav recorded at 16kHz
 #define I2S_BITS_PER_SAMPLE     16
 #define I2S_DMA_BUF_COUNT       8
 #define I2S_DMA_BUF_LEN_SMPLS  512
@@ -48,9 +49,9 @@
 #define WARN_GRACE_MS           3000        // ms above WARN_THRESH before alert fires
 #define BAD_GRACE_MS            5000        // ms above BAD_THRESH before BAD fires
 #define RESET_COOLDOWN_MS       2000        // ms in RESET before returning to GOOD
-#define REPEAT_ALERT_MS         30000       // ms between repeated BAD alerts
-#define ESCALATION_CAP          3           // max escalation cycles before silence
-#define GOOD_STREAK_REWARD_MS   300000      // ms of GOOD before reward chime (5 min)
+#define REPEAT_ALERT_MS         8000        // ms between repeated BAD alerts
+#define ESCALATION_CAP          3           // beep cycles before switching to voice clip
+#define GOOD_STREAK_REWARD_MS   30000       // ms of GOOD before reward chime (30s)
 
 // ── Audio volumes (0.0 – 1.0) ─────────────────────────────────────────────
 #define VOL_WARNING             0.35f
