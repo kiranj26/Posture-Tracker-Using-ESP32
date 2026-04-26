@@ -2,8 +2,11 @@
 
 ## Demo
 
-<!-- Drop demo video here -->
-https://github.com/user-attachments/assets/REPLACE_WITH_VIDEO_ASSET_ID
+https://github.com/user-attachments/assets/0a654031-a435-47b8-a605-cfffa6a3042a
+
+
+
+
 
 A wearable shoulder-mounted posture tracker. Detects slouching in real time using an
 IMU sensor and alerts the user through audio feedback.
