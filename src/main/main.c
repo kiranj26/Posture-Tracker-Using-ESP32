@@ -8,7 +8,7 @@ static const char *TAG = "MAIN";
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Posture Tracker — Phase 1 starting");
+    ESP_LOGI(TAG, "Posture Tracker — Phase 2 starting");
 
     // Initialise I2C bus and MPU-6050. Abort on failure — nothing works without IMU.
     esp_err_t ret = mpu6050_init();
@@ -17,13 +17,16 @@ void app_main(void)
         abort();
     }
 
-    ESP_LOGI(TAG, "MPU-6050 ready. Starting raw data loop...");
+    ESP_LOGI(TAG, "MPU-6050 ready. Starting angle output loop...");
 
-    int16_t ax, ay, az;
+    // Flush EMA filter state before the loop — first ~20 samples will converge
+    mpu6050_reset_filter();
+
+    float pitch, roll;
     while (1) {
-        ret = mpu6050_read_raw(&ax, &ay, &az);
+        ret = mpu6050_read_angles(&pitch, &roll);
         if (ret == ESP_OK) {
-            ESP_LOGI(TAG, "ax=%6d  ay=%6d  az=%6d", ax, ay, az);
+            ESP_LOGI(TAG, "pitch=%7.2f  roll=%7.2f", pitch, roll);
         } else {
             ESP_LOGW(TAG, "Read failed: %s", esp_err_to_name(ret));
         }
