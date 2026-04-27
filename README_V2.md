@@ -154,7 +154,7 @@ USB-C and buttons accessible on edges.
 | 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next | 📦 Parts ordered |
 | 8 | Speaker swap validation (20mm 8Ω 1W) | ⏳ Next | 📦 Parts ordered |
 | 9 | Battery system validation (MCP73831 + LiPo) | ⏳ Pending | 📦 Parts ordered |
-| 10 | PCB V2 design + fabrication (JLCPCB) | ⏳ Pending | 🛒 Order after Phase 9 |
+| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 Schematic in progress | Block 1 done — see `feature/pcb-schematic` |
 | 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
