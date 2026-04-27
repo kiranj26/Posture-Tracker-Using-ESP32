@@ -13,9 +13,9 @@
 
 | Stage | Status | Notes |
 |---|---|---|
-| KiCad installed | ⬜ Not yet | Download from kicad.org |
-| Project created | ⬜ Not yet | |
-| Power block schematic | ⬜ Not started | |
+| KiCad installed | ✅ Done | |
+| Project created | ✅ Done | posture_tracker_v2.kicad_sch |
+| Power block schematic | ✅ Done | ERC clean, 0 errors |
 | MCU block schematic | ⬜ Not started | |
 | IMU block schematic | ⬜ Not started | |
 | Haptic block schematic | ⬜ Not started | |
@@ -292,3 +292,4 @@ Must be downloaded or created manually.
 | Date | What was done | What is next |
 |---|---|---|
 | 2026-04-26 | Branch created, folder structure set up, context file written | Install KiCad, create project, start Block 1 power schematic |
+| 2026-04-27 | Block 1 (Power) schematic complete — J1, F1, U5, J2, U6, bypass caps, PWR_FLAG. ERC: 0 errors. | Draw Block 2 (MCU — ESP32-S3-MINI-1U) |
