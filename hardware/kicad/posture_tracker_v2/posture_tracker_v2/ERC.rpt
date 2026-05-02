@@ -1,0 +1,129 @@
+ERC report (2026-05-02T13:41:12, Encoding UTF8)
+Report includes: Errors, Warnings, Exclusions
+
+***** Sheet /
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1850 mils, 1625 mils): Horizontal Wire, length 300 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1800 mils, 1825 mils): Symbol R4 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1850 mils, 1825 mils): Symbol J1 Pin A5 [CC1, Bidirectional, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1850 mils, 1825 mils): Horizontal Wire, length 50 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1800 mils, 1925 mils): Symbol R5 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1850 mils, 1925 mils): Horizontal Wire, length 50 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2100 mils, 1825 mils): Horizontal Wire, length 100 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2100 mils, 1925 mils): Horizontal Wire, length 100 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2200 mils, 1825 mils): Vertical Wire, length 100 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1950 mils, 2125 mils): Horizontal Wire, length 100 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2200 mils, 1925 mils): Horizontal Wire, length 250 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2450 mils, 1625 mils): Symbol F1 Pin 2 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1950 mils, 2325 mils): Horizontal Wire, length 100 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2450 mils, 1925 mils): Symbol #PWR03 Pin 1 [Power input, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(950 mils, 3125 mils): Vertical Wire, length 200 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2950 mils, 1425 mils): Symbol #FLG03 Pin 1 [Power output, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2950 mils, 1425 mils): Vertical Wire, length 200 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1250 mils, 3125 mils): Vertical Wire, length 200 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(2950 mils, 1625 mils): Horizontal Wire, length 500 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3200 mils, 1125 mils): Vertical Wire, length 100 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3000 mils, 1625 mils): Horizontal Wire, length 50 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(950 mils, 3325 mils): Symbol #PWR01 Pin 1 [Power input, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(1250 mils, 3325 mils): Symbol #PWR02 Pin 1 [Power input, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3400 mils, 1125 mils): Vertical Wire, length 100 mils
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(3400 mils, 1125 mils): Label 'STAT'
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3400 mils, 2025 mils): Symbol U5 Pin 5 [PROG, Input, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3400 mils, 2025 mils): Vertical Wire, length 50 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3800 mils, 1625 mils): Horizontal Wire, length 200 mils
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3400 mils, 2375 mils): Symbol #PWR04 Pin 1 [Power input, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(3400 mils, 2375 mils): Symbol R3 Pin 2 [Passive, Line]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(6850 mils, 2000 mils): Label 'BTN_CAL'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(6850 mils, 2800 mils): Label 'SDA'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(6850 mils, 2900 mils): Label 'SCL'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(8850 mils, 2300 mils): Label 'I2S_DOUT'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(8850 mils, 2400 mils): Label 'I2S_BCLK'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(8850 mils, 2500 mils): Label 'I2S_WS'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(8850 mils, 2600 mils): Label 'VBAT_SENSE'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(8850 mils, 2700 mils): Label 'BTN_SNOOZE'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(8850 mils, 3800 mils): Label 'AUDIO_SD'
+
+ ** ERC messages: 39  Errors 0  Warnings 39
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters
