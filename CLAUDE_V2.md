@@ -136,8 +136,8 @@ all LRA driving complexity (resonance tracking, overdrive, brake) automatically.
 **Package:** WSON-12, 3×3mm
 
 **Key connections:**
-- SDA → GPIO21 (shared I2C bus)
-- SCL → GPIO22 (shared I2C bus)
+- SDA → GPIO8 (shared I2C bus)
+- SCL → GPIO9 (shared I2C bus)
 - IN/TRIG → not used (using I2C mode, not GPIO trigger mode)
 - EN → 3.3V (always enabled)
 - LRA+ / LRA- → motor pads
@@ -334,8 +334,8 @@ Both buttons: GPIO with internal pull-up enabled, active low.
 ESP32-S3-MINI-1U
 ──────────────────────────────────────────────────────────────
 I2C BUS (MPU-6050 + DRV2605L share this bus)
-  GPIO 21   →  SDA   (MPU-6050 pin SDA, DRV2605L pin SDA)
-  GPIO 22   →  SCL   (MPU-6050 pin SCL, DRV2605L pin SCL)
+  GPIO 8    →  SDA   (MPU-6050 pin SDA, DRV2605L pin SDA)
+  GPIO 9    →  SCL   (MPU-6050 pin SCL, DRV2605L pin SCL)
   [4.7kΩ pull-up on SDA and SCL to 3.3V on PCB]
   [MPU-6050 AD0 → GND → address 0x68]
   [DRV2605L address fixed 0x5A — no conflict]

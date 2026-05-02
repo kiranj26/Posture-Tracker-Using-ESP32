@@ -83,8 +83,9 @@ Power flags:
 ESP32-S3-MINI-1U (U1)
   → 3V3: 3.3V rail + 100nF bypass cap to GND
   → GND: GND
-  → GPIO21: SDA net
-  → GPIO22: SCL net
+  → GPIO8:  SDA net (GPIO22 does not exist on ESP32-S3 — corrected)
+  → GPIO9:  SCL net (GPIO22 does not exist on ESP32-S3 — corrected)
+  → GPIO21: no-connect (unused)
   → GPIO25: I2S_WS net
   → GPIO26: I2S_BCLK net
   → GPIO27: I2S_DOUT net
