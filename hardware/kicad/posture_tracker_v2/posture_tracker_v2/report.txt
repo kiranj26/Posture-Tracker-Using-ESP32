@@ -1,0 +1,60 @@
+Info: Processing symbol 'C1:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'U7:Package_TO_SOT_SMD:SOT-23-6'.
+Info: Processing symbol 'C3:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C4:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C5:Capacitor_SMD:C_0805_2012Metric'.
+Info: Processing symbol 'C6:Capacitor_SMD:C_0805_2012Metric'.
+Info: Processing symbol 'C7:Capacitor_SMD:C_0805_2012Metric'.
+Info: Processing symbol 'C8:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C9:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C10:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C11:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C12:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C13:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C14:Capacitor_SMD:C_0805_2012Metric'.
+Info: Processing symbol 'C15:Capacitor_SMD:C_0805_2012Metric'.
+Info: Processing symbol 'C16:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'C17:Capacitor_SMD:C_01005_0402Metric'.
+Info: Processing symbol 'F1:Fuse:Fuse_0805_2012Metric'.
+Info: Processing symbol 'J1:Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12'.
+Info: Processing symbol 'J2:Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal'.
+Info: Processing symbol 'J3:Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'.
+Info: Processing symbol 'LED1:LED_SMD:LED_0805_2012Metric'.
+Info: Processing symbol 'LED2:LED_SMD:LED_0805_2012Metric'.
+Info: Processing symbol 'LS1:Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'.
+Info: Processing symbol 'R1:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R2:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R3:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'C2:Capacitor_SMD:C_0402_1005Metric'.
+Info: Processing symbol 'R4:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R5:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R6:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R7:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R8:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R9:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R10:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R11:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R12:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'R13:Resistor_SMD:R_0402_1005Metric'.
+Info: Processing symbol 'SW1:SKRPABE010:SW_SKRPABE010'.
+Info: Processing symbol 'SW2:SKRPABE010:SW_SKRPABE010'.
+Info: Processing symbol 'SW3:SKRPABE010:SW_SKRPABE010'.
+Info: Processing symbol 'U1:RF_Module:ESP32-S2-MINI-1'.
+Info: Processing symbol 'U2:Sensor_Motion:InvenSense_QFN-24_4x4mm_P0.5mm'.
+Info: Processing symbol 'U3:Package_SO:TSSOP-10_3x3mm_P0.5mm'.
+Info: Processing symbol 'U4:Package_DFN_QFN:TQFN-16-1EP_3x3mm_P0.5mm_EP1.23x1.23mm'.
+Info: Processing symbol 'U5:Package_TO_SOT_SMD:SOT-23-5'.
+Info: Processing symbol 'U6:Package_TO_SOT_SMD:SOT-23-5'.
+Reconnected J1 pin B6 from /USB_DP to /USB_DM.
+Reconnected J1 pin B7 from /USB_DM to /USB_DP.
+Warning: No net found for component J1 pad B8 (no pin B8 in symbol).
+Warning: No net found for component SW1 pad 4 (no pin 4 in symbol).
+Warning: No net found for component SW1 pad 3 (no pin 3 in symbol).
+Warning: No net found for component SW2 pad 3 (no pin 3 in symbol).
+Warning: No net found for component SW2 pad 4 (no pin 4 in symbol).
+Warning: No net found for component SW3 pad 3 (no pin 3 in symbol).
+Warning: No net found for component SW3 pad 4 (no pin 4 in symbol).
+Warning: No net found for component J1 pad A8 (no pin A8 in symbol).
+
+
+Info: Total warnings: 8, errors: 0.

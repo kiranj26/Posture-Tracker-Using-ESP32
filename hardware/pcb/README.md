@@ -27,10 +27,20 @@ cpl_jlcpcb_v2_r1.csv                  ← Component placement list
 
 | File | Revision | Status |
 |---|---|---|
-| posture_tracker_v2_r1.kicad_pcb | R1 | ⬜ Not started |
+| posture_tracker_v2_r1.kicad_pcb | R1 | 🔄 In progress — components placed, routing not started |
+
+## Layout status (2026-05-03)
+
+- All 46 components placed on board (45×35mm outline confirmed)
+- Board outline: `gr_rect (start 165 100) (end 210 135)` = exactly 45×35mm ✅
+- DRC: 4 cosmetic silkscreen warnings, 148 unconnected pads (all expected — routing not done)
+- Premature Gerbers deleted — must regenerate after routing complete
+- U1 footprint: corrected to `RF_Module:ESP32-S3-MINI-1` (65 pads)
 
 ## Do not start layout until
 
-- [ ] Schematic R1 complete and reviewed
-- [ ] DRC passes on schematic with zero errors
-- [ ] All component footprints confirmed against physical parts in hand
+- [x] Schematic R1 complete and reviewed
+- [x] ERC passes with zero errors (0 errors, 5 warnings — all acceptable)
+- [x] All component footprints confirmed against physical parts
+- [ ] PCB routing complete
+- [ ] DRC passes with zero errors after routing

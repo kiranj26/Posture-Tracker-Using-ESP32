@@ -133,7 +133,7 @@ I2C address 0x5A — no conflict with MPU-6050 at 0x68. Has 123 built-in wavefor
 patterns addressable by index — no need to generate waveforms in firmware. Handles
 all LRA driving complexity (resonance tracking, overdrive, brake) automatically.
 
-**Package:** WSON-12, 3×3mm
+**Package:** TSSOP-10, 3×3mm (DRV2605LDGS — chosen over WSON-12 for easier PCB assembly)
 
 **Key connections:**
 - SDA → GPIO8 (shared I2C bus)
@@ -304,8 +304,13 @@ Both buttons: GPIO with internal pull-up enabled, active low.
 | LS1 | Speaker | MECCANIXITY 20mm 8Ω 1W | SMD | 1 | $2.12 | 20mm, 8Ω, 1W — confirmed 2026-04-26 |
 | J1 | USB-C | GCT USB4135-GF-A | SMD | 1 | $0.40 | 2.0 only |
 | J2 | Battery | JST-PH 2-pin | THT | 1 | $0.10 | Keyed, 2mm pitch |
-| SW1 | Button BOOT/CAL | Alps SKRPABE010 | SMD | 1 | $0.10 | |
-| SW2 | Button SNOOZE | Alps SKRPABE010 | SMD | 1 | $0.10 | |
+| SW1 | Button BOOT/CAL | Alps SKRPABE010 | SMD | 1 | $0.10 | Footprint: SKRPABE010:SW_SKRPABE010 |
+| SW2 | Button SNOOZE | Alps SKRPABE010 | SMD | 1 | $0.10 | Footprint: SKRPABE010:SW_SKRPABE010 |
+| SW3 | Button RESET | Alps SKRPABE010 | SMD | 1 | $0.10 | Footprint: SKRPABE010:SW_SKRPABE010 — manual EN reset |
+| LED2 | Snooze indicator | Yellow LED | 0805 | 1 | $0.02 | GPIO46 via R13 1kΩ — on when snooze active |
+| R12 | HAPTIC_EN pull-up | 10kΩ | 0402 | 1 | $0.01 | DRV2605L EN pull-up to 3.3V |
+| R13 | Snooze LED limit | 1kΩ | 0402 | 1 | $0.01 | LED2 current limit |
+| C14 | VBAT bulk cap | 47µF | 0805 | 1 | $0.05 | Near J2 battery connector |
 | BT1 | LiPo 350mAh | Adafruit #2750 | — | 1 | $6.95 | PCM protected, JST-PH, 36×20×5.6mm — confirmed 2026-04-26 |
 | R1,R2 | I2C pull-up 4.7kΩ | — | 0402 | 2 | $0.01 | SDA, SCL |
 | R3 | MCP73831 PROG | 10kΩ | 0402 | 1 | $0.01 | Sets 100mA charge |
@@ -342,8 +347,8 @@ I2C BUS (MPU-6050 + DRV2605L share this bus)
 
 I2S BUS (MAX98357A)
   GPIO 26   →  BCLK  (MAX98357A BCLK)
-  GPIO 25   →  WS    (MAX98357A LRC)
-  GPIO 27   →  DOUT  (MAX98357A DIN)
+  GPIO 33   →  WS    (MAX98357A LRC)
+  GPIO 21   →  DOUT  (MAX98357A DIN)
 
 BUTTONS
   GPIO 0    →  SW1 BOOT/CAL   (active low, internal pull-up, also ESP32 boot pin)
@@ -353,12 +358,21 @@ POWER
   EN        →  AP2112K enable (tie HIGH — always on)
   VBAT_SENSE→  GPIO34 ADC1 (voltage divider on LiPo for battery monitoring)
 
+AUDIO MUTE
+  GPIO 48   →  AUDIO_SD (MAX98357A SD_MODE — software mute)
+
 STATUS LED
-  GPIO 48   →  LED1 (charge status, active high)
+  LED1 → MCP73831 STAT pin via R6 1kΩ (hardware charge indicator, not GPIO controlled)
+
+SNOOZE LED
+  GPIO 46   →  SNOOZE_LED net → R13 (1kΩ) → LED2 → GND (on = snooze active)
+
+RESET BUTTON
+  SW3       →  EN pin (manual reset — press to pull EN low momentarily)
 
 RESERVED / FUTURE
-  GPIO 4    →  MPU-6050 INT (not used in V2 firmware, break out on PCB)
-  GPIO 5    →  DRV2605L EN  (tied HIGH in V2, break out for future control)
+  GPIO 4    →  MPU-6050 INT (MPU_INT net — not used in V2 firmware, break out on PCB)
+  GPIO 5    →  DRV2605L EN  (HAPTIC_EN net — pulled HIGH via R12 10kΩ, break out for future control)
 
 USB (native, direct to connector)
   GPIO 19   →  USB D-
