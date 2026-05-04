@@ -1,296 +1,223 @@
-# Posture Tracker — ESP32 + MPU-6050
+# Posture Tracker V2 — Product Grade Wearable
 
-A wearable shoulder-mounted posture tracker. Detects slouching in real time using an
-IMU sensor and alerts the user through audio feedback.
+> **Branch:** `release/v2-product`  
+> **Status:** In development  
+> **V1 (MVP breadboard):** See [main branch](../../tree/main)
 
-**Hardware:** ESP32 Mini Dev Kit · GY-521 (MPU-6050) · Adafruit MAX98357A · 3W 4Ω speaker  
-**Stack:** ESP-IDF 5.5.0 · PlatformIO · C only (no Arduino, no C++)
+A product-grade evolution of the ESP32 posture tracker. V2 moves from a breadboard
+prototype to a wearable device — custom PCB, LiPo battery, haptic motor, and a compact
+shoulder-clip form factor small enough to wear all day.
 
----
-
-## Demo
-
-https://github.com/user-attachments/assets/0a654031-a435-47b8-a605-cfffa6a3042a
-
-### Walkthrough
-
-1. **Boot** — device powers on, single boot tone confirms audio is working
-2. **Calibration** — ascending 3-note prompt plays; sit upright and hold still for 3 seconds; success arpeggio confirms baseline is locked
-3. **Good posture** — device monitors silently; after 30 seconds of good posture a reward chime plays
-4. **Warning** — deliberately lean forward/sideways beyond 10° for 3 seconds; soft single beep fires
-5. **Bad posture escalation** — hold beyond 20° for 5 seconds; double beep fires, repeating every 8 seconds for 3 cycles
-6. **Voice escalation** — after 3 beeps, "sit up straight" voice clip repeats every 8 seconds until posture is corrected
-7. **Correction** — return to upright posture; "thank you good work" voice clip plays and device resets to monitoring
+**Hardware:** ESP32-S3-MINI-1 · MPU-6050 · DRV2605L + LRA · MAX98357A · 20mm speaker · 350mAh LiPo  
+**Stack:** ESP-IDF 5.5.0 · PlatformIO · C only (no Arduino, no C++)  
+**Target size:** 45×35×16mm (PCB + battery + clip)
 
 ---
 
-## Phase Status
+## What's New in V2
 
-| Phase | Description | Status |
+| Feature | V1 | V2 |
 |---|---|---|
-| 0 | Toolchain verification + project scaffold | ✅ Complete |
-| 1 | I2C driver + raw IMU data | ✅ Complete |
-| 2 | Angle computation + low-pass filter | ✅ Complete |
-| 3 | I2S driver + speaker output | ✅ Complete |
-| 4 | Calibration system | ✅ Complete |
-| 5 | Full integration (FreeRTOS + state machine + audio) | ✅ Complete |
-| 6 | Endurance testing | ✅ Complete |
+| Alerts | Audio only | Haptic (early) + Audio (escalation) |
+| MCU | ESP32 Dev Kit breakout | ESP32-S3-MINI-1 stamp module (built-in PCB antenna) |
+| Power | USB only | 350mAh LiPo — 12–15 hr battery life |
+| PCB | Breadboard + breakouts | Custom 2-layer PCB, all ICs direct |
+| Speaker | 3W 4Ω (50mm, large) | 0.5W 8Ω (20mm, compact) |
+| USB | Micro-USB | USB-C with proper CC resistors |
+| Buttons | None | 2 buttons — recalibrate + snooze |
+| Form factor | ~120×80mm breadboard | 45×35×16mm shoulder clip |
 
 ---
 
-## Hardware Wiring
+## Alert UX — Layered Haptic + Audio
 
-### MPU-6050 (GY-521) → ESP32
+The key design principle: **haptics for early alerts, audio only for escalation.**
 
-| GY-521 Pin | ESP32 Pin |
-|---|---|
-| VCC | 3.3V |
-| GND | GND |
-| SCL | GPIO 22 |
-| SDA | GPIO 21 |
+| Time / State | Haptic | Audio |
+|---|---|---|
+| 10° for 3s — WARNING entry | Single tap | Silent |
+| WARNING sustained | Double tap | Silent |
+| 20° for 5s — BAD entry | Strong double tap | Double beep |
+| BAD +8s | Triple pulse | Double beep |
+| BAD +16s | Triple pulse | Double beep |
+| BAD +24s onwards | Triple pulse | "Sit up straight" — repeats every 8s |
+| Posture corrected | Long reward pulse | "Thank you good work" |
+| 30s good streak | Gentle pulse | Silent |
 
-> XDA, XCL, AD0, INT — leave unconnected for MVP.
-> GY-521 has onboard 4.7kΩ pull-ups on SDA and SCL — do NOT add external ones.
+SW2 (snooze button) mutes all audio for 10 minutes while haptics continue —
+for meetings, calls, or quiet environments.
 
 ---
 
-## Phase 1 — Sensor Axis Map (verified on real hardware, 2026-04-25)
+## Hardware
 
-This axis map was confirmed by physically tilting the sensor on a breadboard.
-Raw values are at ±2g range (16384 LSB = 1g). Sensor was sitting at ~45° on
-breadboard so az at rest reads ~10940 instead of 16384 — normal, calibration
-handles this in Phase 4.
+### Component List
 
-### Confirmed axis orientations
+| Component | Part | Purpose |
+|---|---|---|
+| ESP32-S3-MINI-1 | Espressif | MCU — dual core, BLE 5.0, native USB, built-in PCB antenna |
+| MPU-6050 | InvenSense | 6-axis IMU — pitch/roll angle sensing |
+| DRV2605L | Texas Instruments | Haptic driver — 123 built-in LRA waveforms |
+| Z10SC2B LRA | Jinlong | 10mm linear resonant actuator — sharp haptic taps |
+| MAX98357A | Maxim | I2S Class D amplifier — voice clips + tones |
+| CMS-2009-SMT-TR | CUI Devices | 20mm 8Ω 0.5W speaker |
+| MCP73831 | Microchip | LiPo charging IC — 100mA from USB-C |
+| AP2112K-3.3 | Diodes Inc | 600mA LDO regulator — 3.3V rail |
+| USBLC6-2SC6 | STMicro | USB ESD protection on D+/D- lines |
+| 350mAh LiPo | Generic | Battery — 12–15 hour runtime |
+| USB-C (HRO TYPE-C-31-M-12) | HRO | Charging + programming port, both-orientation USB 2.0 |
 
-| Movement | Axis | Direction | Typical raw value |
+### Pin Assignment
+
+| Signal | GPIO | Notes |
+|---|---|---|
+| I2C SDA | 8 | MPU-6050 + DRV2605L shared (GPIO21/22 do not exist on ESP32-S3) |
+| I2C SCL | 9 | MPU-6050 + DRV2605L shared |
+| I2S BCLK | 26 | MAX98357A |
+| I2S WS | 25 | MAX98357A |
+| I2S DOUT | 27 | MAX98357A |
+| SW1 BOOT/CAL | 0 | Recalibrate / ESP32 boot |
+| SW2 SNOOZE | 35 | 10-min snooze / mute toggle |
+| SW3 RESET | EN pin | Hardware reset button |
+| VBAT SENSE | 34 | ADC — battery voltage monitor |
+| AUDIO MUTE | 48 | MAX98357A SD_MODE |
+| USB D+ | 20 | Via USBLC6-2SC6 ESD protection |
+| USB D- | 19 | Via USBLC6-2SC6 ESD protection |
+
+---
+
+## Architecture
+
+### Three FreeRTOS tasks (V1) + Two new tasks (V2)
+
+| Task | Core | Priority | Purpose |
 |---|---|---|---|
-| Flat on desk | az | positive | ~10940 |
-| Tilt toward you — takeoff / nose up | ay | large positive | ~+7300 |
-| Tilt away from you — landing / nose down | ay | large negative | ~-6800 |
-| Tilt left | ax | large positive | ~+6500 |
-| Tilt right | ax | large negative | ~-8000 |
+| task_read_imu | 0 | 5 | IMU read every 100ms with light sleep |
+| task_posture_fsm | 0 | 4 | State machine — unchanged from V1 |
+| task_audio | 1 | 3 | Audio + haptic dispatch |
+| task_buttons | 0 | 2 | Debounced button events |
+| task_power | 0 | 1 | Battery monitor every 60s |
 
-### Quick reference
+### New modules vs V1
 
 ```
-ax large +  →  tilted LEFT
-ax large -  →  tilted RIGHT
-ay large +  →  tilted TOWARD you  (takeoff / nose up)
-ay large -  →  tilted AWAY        (landing / nose down)
-az ~10000   →  sitting flat on breadboard
-```
+NEW:      haptic.c    — DRV2605L I2C driver, waveform playback (non-blocking)
+NEW:      power.c     — battery ADC, low-battery warning, deep sleep entry
+NEW:      buttons.c   — debounced GPIO, short/long press detection
 
-### Raw data sample — sensor at rest
-```
-I (57177) MAIN: ax=   276  ay=    20  az= 10926
-I (57277) MAIN: ax=   276  ay=    48  az= 10888
-I (57377) MAIN: ax=   300  ay=    44  az= 11006
-```
-
-### Raw data sample — tilted away / nose down (ay large negative)
-```
-I (22077) MAIN: ax=   366  ay= -6506  az=  9508
-I (22177) MAIN: ax=   198  ay= -6502  az=  9494
-I (22277) MAIN: ax=   248  ay= -6582  az=  9472
-```
-
-### Raw data sample — tilted toward / nose up (ay large positive)
-```
-I (30177) MAIN: ax=   706  ay=  7304  az=  9322
-I (30277) MAIN: ax=   712  ay=  7338  az=  9300
-I (30377) MAIN: ax=   446  ay=  7466  az=  9054
-```
-
-### Raw data sample — tilted left (ax large positive)
-```
-I (43177) MAIN: ax=  6442  ay=    32  az=  9802
-I (43277) MAIN: ax=  6490  ay=    70  az=  9774
-I (43377) MAIN: ax=  6540  ay=    70  az=  9646
-```
-
-### Raw data sample — tilted right (ax large negative)
-```
-I (52677) MAIN: ax= -7628  ay=    22  az=  8708
-I (52777) MAIN: ax= -7726  ay=    10  az=  8618
-I (52877) MAIN: ax= -7832  ay=    12  az=  8566
+UNCHANGED: mpu6050.c  — I2C driver, atan2 angle math, EMA filter
+UNCHANGED: posture_fsm.c — state machine logic (only alert commands change)
+MODIFIED:  audio.c    — adds haptic command dispatch alongside audio
+MODIFIED:  main.c     — init order adds haptic, power, buttons
 ```
 
 ---
 
-## Phase 2 — Angle Output (verified on real hardware, 2026-04-25)
+## Power System
 
-Sensor sitting at the same ~45° breadboard angle from Phase 1.
-EMA filter (alpha=0.15) applied. Resting values are non-zero by design —
-Phase 4 calibration will capture these as baseline.
-
-### Resting values (sensor still on breadboard)
 ```
-pitch ≈ +1.3°  roll ≈ +0.2°   (fluctuation < ±0.3°)
-```
-
-### Verified angle ranges
-
-| Movement | Axis | Direction | Observed range | Pass threshold |
-|---|---|---|---|---|
-| Tilt left | pitch | large positive | up to **+86°** | >10° |
-| Tilt right | pitch | large negative | down to **-87°** | >10° |
-| Nose up (takeoff) | roll | large positive | up to **+176°** | >10° |
-| Nose down (landing) | roll | large negative | down to **-86°** | >10° |
-
-### Quick reference
-```
-pitch large +  →  tilted LEFT
-pitch large -  →  tilted RIGHT
-roll  large +  →  nose up  (takeoff)
-roll  large -  →  nose down (landing)
+USB-C (5V) → Polyfuse → MCP73831 LiPo charger → 350mAh LiPo
+                                                        ↓
+                                                  AP2112K LDO
+                                                        ↓
+                                                    3.3V rail → all ICs
 ```
 
-### Filter behaviour
-- Convergence after tilt release: ~10–15 samples (1–1.5 seconds) ✅
-- At-rest noise floor: < ±0.3° ✅
+**Battery life estimate:**
+- Active draw (IMU reading, no alerts): ~6mA average with light sleep
+- 350mAh ÷ 6mA = ~58 hours theoretical
+- Real world (audio bursts, haptic, occasional BLE): **12–15 hours**
 
-### Raw data sample — sensor at rest
-```
-I (9591) MAIN: pitch=   1.65  roll=   0.47
-I (9691) MAIN: pitch=   1.73  roll=   0.26
-I (9791) MAIN: pitch=   1.72  roll=   0.25
-```
+**Low battery handling:**
+- < 3.5V → warning beep + haptic
+- < 3.3V → shutdown tone + deep sleep
 
-### Raw data sample — tilt left (pitch large positive)
-```
-I (16591) MAIN: pitch=  37.51  roll=   0.07
-I (16691) MAIN: pitch=  39.49  roll=   0.15
-I (16791) MAIN: pitch=  41.74  roll=   0.26
-```
+---
 
-### Raw data sample — tilt right (pitch large negative)
-```
-I (26591) MAIN: pitch= -63.62  roll=   1.35
-I (26691) MAIN: pitch= -66.73  roll=   1.79
-I (26791) MAIN: pitch= -69.72  roll=   2.40
-```
+## Form Factor
 
-### Raw data sample — nose up / takeoff (roll large positive)
 ```
-I (33591) MAIN: pitch=   1.06  roll=  34.53
-I (33691) MAIN: pitch=   1.49  roll=  36.91
-I (33791) MAIN: pitch=   1.86  roll=  39.22
-```
+Assembled dimensions:
+  PCB alone:        45 × 35 × 1.6mm
+  PCB + battery:    45 × 35 × 8mm
+  With clip:        45 × 38 × 16mm   ← final wearable size
 
-### Raw data sample — nose down / landing (roll large negative)
-```
-I (43591) MAIN: pitch=   3.25  roll= -26.89
-I (43691) MAIN: pitch=   3.77  roll= -30.55
-I (43791) MAIN: pitch=   4.35  roll= -34.24
+Comparable to a car key fob.
+Clips onto shirt collar, bra strap, or epaulette.
+LRA motor faces the body for best haptic transmission.
+Speaker grille faces outward.
+USB-C and buttons accessible on edges.
 ```
 
 ---
 
-## Phase 5 — Full Integration (verified on real hardware, 2026-04-26)
+## Development Phases
 
-Three FreeRTOS tasks running concurrently:
-- **Task A (IMU, Core 0, prio 5):** reads angles every 100ms, writes to `g_imu_data` under mutex, sets event group bit
-- **Task B (FSM, Core 0, prio 4):** blocks on event group, evaluates posture state machine, enqueues audio commands
-- **Task C (Audio, Core 1, prio 3):** blocks on queue, dispatches tone sequences and WAV playback
-
-### Escalation sequence when in BAD state
-
-| Time in BAD | Audio |
-|---|---|
-| Entry | Double beep |
-| +8s | Double beep (escalation 2) |
-| +16s | Double beep (escalation 3) |
-| +24s onwards | "Sit up straight" voice clip, repeating every 8s until corrected |
-
-Correcting posture at any point → 2-note confirm tone → RESET → GOOD.
-
-### Key implementation notes
-- WAV playback switches I2S clock to 16kHz then back to 44.1kHz — prevents chipmunk effect
-- WAV embedded as C array (`sit_up_wav.c`) — `EMBED_FILES` not supported by PlatformIO ESP-IDF build
-- Calibration validates pitch stddev only — roll singularity at vertical mounting (gz≈0) excluded
-- FSM never calls `vTaskDelay()` — all timing via `esp_timer_get_time()`
+| Phase | Description | Status | Hardware |
+|---|---|---|---|
+| 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next | 📦 Parts ordered |
+| 8 | Speaker swap validation (20mm 8Ω 1W) | ⏳ Next | 📦 Parts ordered |
+| 9 | Battery system validation (MCP73831 + LiPo) | ⏳ Pending | 📦 Parts ordered |
+| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 Routing in progress | Schematic ✅ ERC clean. Components placed ✅. DRC clean (2 acceptable silk warnings). Routing WIP — power rails next. See `feature/pcb-schematic` |
+| 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
 
-## Phase 4 — Calibration System (verified on real hardware, 2026-04-26)
+## Branch Structure
 
-### Key design decision — pitch-only stddev validation
-`roll = atan2(gy, gz)` is numerically unstable when the sensor is vertical
-(gz ≈ 0), e.g. mounted on a human back. Even with sensor perfectly still,
-roll stddev reads ~11° at 90° mounting due to formula singularity. Pitch
-`= atan2(gx, sqrt(gy²+gz²))` has no singularity — stable at every orientation.
-Calibration validity check uses pitch stddev only.
+```
+main                        ← V1 MVP (public, breadboard, complete)
+  └── release/v2-product    ← this branch — all V2 work
+        └── feature/haptics
+        └── feature/speaker-swap
+        └── feature/power-system
+        └── feature/pcb-v2
+        └── feature/enclosure
+```
 
-### Pass criteria met — verified in both mounting orientations
+---
 
-| Orientation | Cal pitch_stddev | Result |
+## PCB Layout — Current State (WIP)
+
+> Branch: `feature/pcb-schematic`
+
+### Design decisions locked
+- **2-layer board** — F.Cu for all signal and power traces, B.Cu reserved exclusively for GND copper pour (filled last)
+- **Net classes** — Power nets (+3V3, /VBAT, /VBUS, /VBUS_FUSED): 0.5mm trace / 0.8mm via / 0.4mm drill. Signal: 0.2mm / 0.6mm / 0.3mm
+- **Board size** — 45.5 × 27mm (fits 45×35×16mm wearable form factor with battery)
+- **Connectors** — J1: USB-C (HRO TYPE-C-31-M-12), J2: JST PH 2mm (battery), J3: JST GH 1.25mm (LRA haptic), LS1: JST GH 1.25mm (speaker)
+- **Speaker** — MECCANIXITY 20mm 8Ω 1W with pre-soldered 1.25mm cable → plugs into LS1 on PCB
+- **LRA motor** — Vybronics VG1030001XH → 1.25mm cable → plugs into J3 on PCB
+
+### Routing status
+| Net group | Connections | Status |
 |---|---|---|
-| Flat on desk | 0.38° | ✅ Accepted |
-| Vertical (like human back, roll≈90°) | 0.93° | ✅ Accepted |
+| GND | ~72 | ⏳ Handled by B.Cu copper pour at end |
+| +3V3 | 23 | ⏳ Next to route |
+| VBAT | 7 | ⏳ Pending |
+| VBUS / VBUS_FUSED | 4 | ⏳ Pending |
+| I2C (SDA/SCL) | 6 | ⏳ Pending |
+| USB_DP / USB_DM | 8 | ⏳ Pending |
+| I2S (BCLK/WS/DOUT) | 3 | ⏳ Pending |
+| Signals + buttons | ~31 | ⏳ Pending |
 
-- Prompt tones → 3s collection → success arpeggio → baseline locked ✅
-- Deliberate movement during calibration → fail tone → auto-retry ✅
-- Baseline consistent across repeated calibrations ✅
+**DRC baseline:** 154 unconnected, 2 silk warnings (U1 antenna overhang — expected), 0 copper errors.
 
----
-
-## Phase 3 — I2S + Speaker Output (verified on real hardware, 2026-04-26)
-
-MAX98357A wired to ESP32: BCLK→GPIO26, LRC→GPIO25, DIN→GPIO27, VIN→5V.
-
-### Pass criteria met
-- Audible 500Hz boot tone at every power-on — clean, no pop, no distortion ✅
-- No I2S error codes in serial log ✅
-- IMU angle loop continues normally after tone finishes ✅
-
-### Wiring reference
-
-| MAX98357A Pin | ESP32 Pin |
-|---|---|
-| VIN | 5V |
-| GND | GND |
-| BCLK | GPIO 26 |
-| LRC (WS) | GPIO 25 |
-| DIN | GPIO 27 |
-| GAIN | leave floating (9dB) |
-| SD | leave floating (always on) |
-
----
-
-## Build & Flash
-
-```bash
-# Build
-pio run
-
-# Flash
-pio run --target upload
-
-# Serial monitor
-pio device monitor --baud 115200
-
-# Clean rebuild (after sdkconfig changes)
-pio run --target clean && pio run
+### File locations
 ```
-
----
-
-## Known Setup Issues (solved)
-
-### ESP-IDF 5.x bootloader overlap
-ESP-IDF 5.5.0 bootloader is ~29KB. The default partition table offset `0x8000`
-is only 28KB from the bootloader start — causes an overlap error at flash time.
-**Fix:** `CONFIG_PARTITION_TABLE_OFFSET=0x9000` in `sdkconfig.defaults`.
-
-### Flash size mis-detection
-PlatformIO auto-detects 2MB on first run. Board has 4MB.
-**Fix:** `board_build.flash_size = 4MB` in `platformio.ini` and
-`CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y` in `sdkconfig.defaults`.
+hardware/
+├── kicad/posture_tracker_v2/
+│   └── posture_tracker_v2/    ← KiCad source (schematic + PCB + project files)
+├── schematics/                ← Exported schematic PDF + design guide
+├── pcb/                       ← PCB layout PDF exports + Gerbers (after routing)
+├── bom/                       ← Bill of materials
+└── datasheets/                ← Component datasheets
+```
 
 ---
 
 ## Reference Docs
 
-- [CLAUDE.md](CLAUDE.md) — architecture, hardware specs, coding conventions
-- [PHASES.md](PHASES.md) — phase-by-phase build guide with pass criteria
+- [CLAUDE.md](CLAUDE.md) — full architecture, component decisions, hard rules
+- [PHASES.md](PHASES.md) — V2 phase build guide (phases 7–11)
+- [hardware/schematics/SCHEMATIC_GUIDE.md](hardware/schematics/SCHEMATIC_GUIDE.md) — full reasoning for every schematic block
