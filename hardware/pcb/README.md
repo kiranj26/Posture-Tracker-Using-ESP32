@@ -27,10 +27,36 @@ cpl_jlcpcb_v2_r1.csv                  ← Component placement list
 
 | File | Revision | Status |
 |---|---|---|
-| posture_tracker_v2_r1.kicad_pcb | R1 | ⬜ Not started |
+| posture_tracker_v2 | R1 | 🔄 Routing in progress — power rails next |
 
-## Do not start layout until
+## Layout status (2026-05-03)
 
-- [ ] Schematic R1 complete and reviewed
-- [ ] DRC passes on schematic with zero errors
-- [ ] All component footprints confirmed against physical parts in hand
+- All 46 components placed ✅
+- Board outline adjusted to 45.5 × 27mm for wearable form factor ✅
+- DRC baseline: **154 unconnected, 2 acceptable silk warnings (U1 antenna), 0 copper errors** ✅
+- GND routing strategy: B.Cu copper pour filled at end — no manual GND traces
+- Net classes set: Power (0.5mm trace / 0.8mm via) and Default (0.2mm / 0.6mm via)
+- Connector footprints: J3 + LS1 updated to JST GH 1.25mm (matches physical cables)
+- Gerbers: NOT generated yet — routing incomplete
+
+## Routing progress
+
+| Net group | Connections | Status |
+|---|---|---|
+| GND (~72) | — | ⏳ B.Cu copper pour — done last |
+| +3V3 | 23 | ⏳ Next |
+| VBAT | 7 | ⏳ Pending |
+| VBUS / VBUS_FUSED | 4 | ⏳ Pending |
+| I2C (SDA/SCL) | 6 | ⏳ Pending |
+| USB_DP / USB_DM | 8 | ⏳ Pending |
+| I2S (BCLK/WS/DOUT) | 3 | ⏳ Pending |
+| Signals + buttons + misc | ~31 | ⏳ Pending |
+
+## Checklist before Gerber export
+
+- [x] Schematic R1 complete and ERC clean
+- [x] All 46 components placed
+- [x] DRC clean (0 copper errors)
+- [ ] All nets routed
+- [ ] B.Cu copper pour filled and DRC re-run
+- [ ] Final DRC: 0 errors, 0 unconnected

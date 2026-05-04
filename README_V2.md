@@ -8,7 +8,7 @@ A product-grade evolution of the ESP32 posture tracker. V2 moves from a breadboa
 prototype to a wearable device — custom PCB, LiPo battery, haptic motor, and a compact
 shoulder-clip form factor small enough to wear all day.
 
-**Hardware:** ESP32-S3-MINI-1U · MPU-6050 · DRV2605L + LRA · MAX98357A · 20mm speaker · 350mAh LiPo  
+**Hardware:** ESP32-S3-MINI-1 · MPU-6050 · DRV2605L + LRA · MAX98357A · 20mm speaker · 350mAh LiPo  
 **Stack:** ESP-IDF 5.5.0 · PlatformIO · C only (no Arduino, no C++)  
 **Target size:** 45×35×16mm (PCB + battery + clip)
 
@@ -19,7 +19,7 @@ shoulder-clip form factor small enough to wear all day.
 | Feature | V1 | V2 |
 |---|---|---|
 | Alerts | Audio only | Haptic (early) + Audio (escalation) |
-| MCU | ESP32 Dev Kit breakout | ESP32-S3-MINI-1U stamp module |
+| MCU | ESP32 Dev Kit breakout | ESP32-S3-MINI-1 stamp module (built-in PCB antenna) |
 | Power | USB only | 350mAh LiPo — 12–15 hr battery life |
 | PCB | Breadboard + breakouts | Custom 2-layer PCB, all ICs direct |
 | Speaker | 3W 4Ω (50mm, large) | 0.5W 8Ω (20mm, compact) |
@@ -55,7 +55,7 @@ for meetings, calls, or quiet environments.
 
 | Component | Part | Purpose |
 |---|---|---|
-| ESP32-S3-MINI-1U | Espressif | MCU — dual core, BLE 5.0, native USB |
+| ESP32-S3-MINI-1 | Espressif | MCU — dual core, BLE 5.0, native USB, built-in PCB antenna |
 | MPU-6050 | InvenSense | 6-axis IMU — pitch/roll angle sensing |
 | DRV2605L | Texas Instruments | Haptic driver — 123 built-in LRA waveforms |
 | Z10SC2B LRA | Jinlong | 10mm linear resonant actuator — sharp haptic taps |
@@ -63,22 +63,26 @@ for meetings, calls, or quiet environments.
 | CMS-2009-SMT-TR | CUI Devices | 20mm 8Ω 0.5W speaker |
 | MCP73831 | Microchip | LiPo charging IC — 100mA from USB-C |
 | AP2112K-3.3 | Diodes Inc | 600mA LDO regulator — 3.3V rail |
+| USBLC6-2SC6 | STMicro | USB ESD protection on D+/D- lines |
 | 350mAh LiPo | Generic | Battery — 12–15 hour runtime |
-| USB-C (GCT USB4135) | GCT | Charging + programming port |
+| USB-C (HRO TYPE-C-31-M-12) | HRO | Charging + programming port, both-orientation USB 2.0 |
 
 ### Pin Assignment
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| I2C SDA | 21 | MPU-6050 + DRV2605L shared |
-| I2C SCL | 22 | MPU-6050 + DRV2605L shared |
+| I2C SDA | 8 | MPU-6050 + DRV2605L shared (GPIO21/22 do not exist on ESP32-S3) |
+| I2C SCL | 9 | MPU-6050 + DRV2605L shared |
 | I2S BCLK | 26 | MAX98357A |
 | I2S WS | 25 | MAX98357A |
 | I2S DOUT | 27 | MAX98357A |
 | SW1 BOOT/CAL | 0 | Recalibrate / ESP32 boot |
 | SW2 SNOOZE | 35 | 10-min snooze / mute toggle |
+| SW3 RESET | EN pin | Hardware reset button |
 | VBAT SENSE | 34 | ADC — battery voltage monitor |
 | AUDIO MUTE | 48 | MAX98357A SD_MODE |
+| USB D+ | 20 | Via USBLC6-2SC6 ESD protection |
+| USB D- | 19 | Via USBLC6-2SC6 ESD protection |
 
 ---
 
@@ -154,7 +158,7 @@ USB-C and buttons accessible on edges.
 | 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next | 📦 Parts ordered |
 | 8 | Speaker swap validation (20mm 8Ω 1W) | ⏳ Next | 📦 Parts ordered |
 | 9 | Battery system validation (MCP73831 + LiPo) | ⏳ Pending | 📦 Parts ordered |
-| 10 | PCB V2 design + fabrication (JLCPCB) | ⏳ Pending | 🛒 Order after Phase 9 |
+| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 Routing in progress | Schematic ✅ ERC clean. Components placed ✅. DRC clean (2 acceptable silk warnings). Routing WIP — power rails next. See `feature/pcb-schematic` |
 | 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
@@ -169,6 +173,45 @@ main                        ← V1 MVP (public, breadboard, complete)
         └── feature/power-system
         └── feature/pcb-v2
         └── feature/enclosure
+```
+
+---
+
+## PCB Layout — Current State (WIP)
+
+> Branch: `feature/pcb-schematic`
+
+### Design decisions locked
+- **2-layer board** — F.Cu for all signal and power traces, B.Cu reserved exclusively for GND copper pour (filled last)
+- **Net classes** — Power nets (+3V3, /VBAT, /VBUS, /VBUS_FUSED): 0.5mm trace / 0.8mm via / 0.4mm drill. Signal: 0.2mm / 0.6mm / 0.3mm
+- **Board size** — 45.5 × 27mm (fits 45×35×16mm wearable form factor with battery)
+- **Connectors** — J1: USB-C (HRO TYPE-C-31-M-12), J2: JST PH 2mm (battery), J3: JST GH 1.25mm (LRA haptic), LS1: JST GH 1.25mm (speaker)
+- **Speaker** — MECCANIXITY 20mm 8Ω 1W with pre-soldered 1.25mm cable → plugs into LS1 on PCB
+- **LRA motor** — Vybronics VG1030001XH → 1.25mm cable → plugs into J3 on PCB
+
+### Routing status
+| Net group | Connections | Status |
+|---|---|---|
+| GND | ~72 | ⏳ Handled by B.Cu copper pour at end |
+| +3V3 | 23 | ⏳ Next to route |
+| VBAT | 7 | ⏳ Pending |
+| VBUS / VBUS_FUSED | 4 | ⏳ Pending |
+| I2C (SDA/SCL) | 6 | ⏳ Pending |
+| USB_DP / USB_DM | 8 | ⏳ Pending |
+| I2S (BCLK/WS/DOUT) | 3 | ⏳ Pending |
+| Signals + buttons | ~31 | ⏳ Pending |
+
+**DRC baseline:** 154 unconnected, 2 silk warnings (U1 antenna overhang — expected), 0 copper errors.
+
+### File locations
+```
+hardware/
+├── kicad/posture_tracker_v2/
+│   └── posture_tracker_v2/    ← KiCad source (schematic + PCB + project files)
+├── schematics/                ← Exported schematic PDF + design guide
+├── pcb/                       ← PCB layout PDF exports + Gerbers (after routing)
+├── bom/                       ← Bill of materials
+└── datasheets/                ← Component datasheets
 ```
 
 ---

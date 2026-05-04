@@ -1,0 +1,10 @@
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-F_Cu.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-B_Cu.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-F_Paste.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-B_Paste.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-F_Silkscreen.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-B_Silkscreen.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-F_Mask.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-B_Mask.pdf'.
+Plotted to '/Users/kiranjojare/Workplace/Github/kiranj26/Posture-Tracker-Using-ESP32/hardware/kicad/posture_tracker_v2/posture_tracker_v2/posture_tracker_v2-Edge_Cuts.pdf'.
+Info: Done.
