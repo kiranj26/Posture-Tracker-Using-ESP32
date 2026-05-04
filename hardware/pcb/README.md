@@ -27,20 +27,36 @@ cpl_jlcpcb_v2_r1.csv                  ← Component placement list
 
 | File | Revision | Status |
 |---|---|---|
-| posture_tracker_v2_r1.kicad_pcb | R1 | 🔄 In progress — components placed, routing not started |
+| posture_tracker_v2 | R1 | 🔄 Routing in progress — power rails next |
 
 ## Layout status (2026-05-03)
 
-- All 46 components placed on board (45×35mm outline confirmed)
-- Board outline: `gr_rect (start 165 100) (end 210 135)` = exactly 45×35mm ✅
-- DRC: 4 cosmetic silkscreen warnings, 148 unconnected pads (all expected — routing not done)
-- Premature Gerbers deleted — must regenerate after routing complete
-- U1 footprint: corrected to `RF_Module:ESP32-S3-MINI-1` (65 pads)
+- All 46 components placed ✅
+- Board outline adjusted to 45.5 × 27mm for wearable form factor ✅
+- DRC baseline: **154 unconnected, 2 acceptable silk warnings (U1 antenna), 0 copper errors** ✅
+- GND routing strategy: B.Cu copper pour filled at end — no manual GND traces
+- Net classes set: Power (0.5mm trace / 0.8mm via) and Default (0.2mm / 0.6mm via)
+- Connector footprints: J3 + LS1 updated to JST GH 1.25mm (matches physical cables)
+- Gerbers: NOT generated yet — routing incomplete
 
-## Do not start layout until
+## Routing progress
 
-- [x] Schematic R1 complete and reviewed
-- [x] ERC passes with zero errors (0 errors, 5 warnings — all acceptable)
-- [x] All component footprints confirmed against physical parts
-- [ ] PCB routing complete
-- [ ] DRC passes with zero errors after routing
+| Net group | Connections | Status |
+|---|---|---|
+| GND (~72) | — | ⏳ B.Cu copper pour — done last |
+| +3V3 | 23 | ⏳ Next |
+| VBAT | 7 | ⏳ Pending |
+| VBUS / VBUS_FUSED | 4 | ⏳ Pending |
+| I2C (SDA/SCL) | 6 | ⏳ Pending |
+| USB_DP / USB_DM | 8 | ⏳ Pending |
+| I2S (BCLK/WS/DOUT) | 3 | ⏳ Pending |
+| Signals + buttons + misc | ~31 | ⏳ Pending |
+
+## Checklist before Gerber export
+
+- [x] Schematic R1 complete and ERC clean
+- [x] All 46 components placed
+- [x] DRC clean (0 copper errors)
+- [ ] All nets routed
+- [ ] B.Cu copper pour filled and DRC re-run
+- [ ] Final DRC: 0 errors, 0 unconnected

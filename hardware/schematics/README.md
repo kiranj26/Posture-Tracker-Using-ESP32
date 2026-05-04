@@ -15,6 +15,15 @@ posture_tracker_v2_r2.kicad_sch    ← after first revision corrections
 |---|---|---|---|
 | posture_tracker_v2 | R1 | ✅ Complete | All 7 blocks done. ERC: 0 errors, 5 warnings. Reddit review fixes applied. |
 
+## Connector decisions (2026-05-03)
+
+| Ref | Net | Connector | Reason |
+|---|---|---|---|
+| J1 | USB-C | HRO TYPE-C-31-M-12 | Dual-orientation USB 2.0 charging + programming |
+| J2 | VBAT | JST PH 2mm horizontal | Battery connector standard |
+| J3 | LRA_P / LRA_N | JST GH 1.25mm vertical | Matches Vybronics LRA motor cable |
+| LS1 | SPK_P / SPK_N | JST GH 1.25mm vertical | Matches MECCANIXITY 20mm speaker 1.25mm cable |
+
 ## Schematic blocks progress
 
 | Block | Description | Status |

@@ -1,3 +1,18 @@
 .pio/
 .vscode/
 sdkconfig.old
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# KiCad auto-generated / temp files
+*.lck
+*.wbk
+*-backups/
+*-job.gbrjob
+# KiCad plot outputs in project folder (export to hardware/pcb/ or hardware/schematics/ instead)
+hardware/kicad/**/*.pdf
+
+# Claude Code memory
+.claude/

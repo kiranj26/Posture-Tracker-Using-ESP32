@@ -158,7 +158,7 @@ USB-C and buttons accessible on edges.
 | 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next | 📦 Parts ordered |
 | 8 | Speaker swap validation (20mm 8Ω 1W) | ⏳ Next | 📦 Parts ordered |
 | 9 | Battery system validation (MCP73831 + LiPo) | ⏳ Pending | 📦 Parts ordered |
-| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 Layout in progress | Schematic complete (46 components, ERC 0 errors). Components placed, routing next. See `feature/pcb-schematic` |
+| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 Routing in progress | Schematic ✅ ERC clean. Components placed ✅. DRC clean (2 acceptable silk warnings). Routing WIP — power rails next. See `feature/pcb-schematic` |
 | 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
@@ -173,6 +173,45 @@ main                        ← V1 MVP (public, breadboard, complete)
         └── feature/power-system
         └── feature/pcb-v2
         └── feature/enclosure
+```
+
+---
+
+## PCB Layout — Current State (WIP)
+
+> Branch: `feature/pcb-schematic`
+
+### Design decisions locked
+- **2-layer board** — F.Cu for all signal and power traces, B.Cu reserved exclusively for GND copper pour (filled last)
+- **Net classes** — Power nets (+3V3, /VBAT, /VBUS, /VBUS_FUSED): 0.5mm trace / 0.8mm via / 0.4mm drill. Signal: 0.2mm / 0.6mm / 0.3mm
+- **Board size** — 45.5 × 27mm (fits 45×35×16mm wearable form factor with battery)
+- **Connectors** — J1: USB-C (HRO TYPE-C-31-M-12), J2: JST PH 2mm (battery), J3: JST GH 1.25mm (LRA haptic), LS1: JST GH 1.25mm (speaker)
+- **Speaker** — MECCANIXITY 20mm 8Ω 1W with pre-soldered 1.25mm cable → plugs into LS1 on PCB
+- **LRA motor** — Vybronics VG1030001XH → 1.25mm cable → plugs into J3 on PCB
+
+### Routing status
+| Net group | Connections | Status |
+|---|---|---|
+| GND | ~72 | ⏳ Handled by B.Cu copper pour at end |
+| +3V3 | 23 | ⏳ Next to route |
+| VBAT | 7 | ⏳ Pending |
+| VBUS / VBUS_FUSED | 4 | ⏳ Pending |
+| I2C (SDA/SCL) | 6 | ⏳ Pending |
+| USB_DP / USB_DM | 8 | ⏳ Pending |
+| I2S (BCLK/WS/DOUT) | 3 | ⏳ Pending |
+| Signals + buttons | ~31 | ⏳ Pending |
+
+**DRC baseline:** 154 unconnected, 2 silk warnings (U1 antenna overhang — expected), 0 copper errors.
+
+### File locations
+```
+hardware/
+├── kicad/posture_tracker_v2/
+│   └── posture_tracker_v2/    ← KiCad source (schematic + PCB + project files)
+├── schematics/                ← Exported schematic PDF + design guide
+├── pcb/                       ← PCB layout PDF exports + Gerbers (after routing)
+├── bom/                       ← Bill of materials
+└── datasheets/                ← Component datasheets
 ```
 
 ---
