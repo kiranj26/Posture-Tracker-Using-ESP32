@@ -1,456 +1,698 @@
-# CLAUDE.md — Posture Tracker
+# CLAUDE.md — Posture Tracker V2 (Product Grade)
 
-> **Purpose of this file:** This is the single source of truth for any AI assistant (Claude or otherwise) helping with this project. Read this entire file before writing, reviewing, or debugging any code. Every architectural decision, hardware constraint, naming convention, and phase boundary is documented here. Do not deviate from what is written unless the human explicitly requests a change and this file is updated to match.
+> **Purpose:** This is the single source of truth for V2 development on the `release/v2-product` branch.
+> Read this entire file before writing, reviewing, or debugging any V2 code.
+> V1 breadboard architecture lives on the [main branch](../../tree/main) — do not mix V1 and V2 assumptions.
+> This branch is never merged to `main` without an explicit product release decision.
 
 ---
 
 ## Table of Contents
 
-1. [Project Overview](#1-project-overview)
-2. [Hardware Inventory & Wiring](#2-hardware-inventory--wiring)
-3. [Toolchain & Environment](#3-toolchain--environment)
-4. [Project File Structure](#4-project-file-structure)
-5. [Architecture & Design Decisions](#5-architecture--design-decisions)
-6. [Configuration Reference (config.h)](#6-configuration-reference-configh)
-7. [Module Specifications](#7-module-specifications)
-8. [FreeRTOS Task Design](#8-freertos-task-design)
-9. [Posture State Machine](#9-posture-state-machine)
-10. [Audio System](#10-audio-system)
-11. [Calibration System](#11-calibration-system)
-12. [Error Handling Rules](#12-error-handling-rules)
-13. [Development Phases](#13-development-phases)
-14. [Coding Conventions](#14-coding-conventions)
-15. [Build & Flash Commands](#15-build--flash-commands)
-16. [Debugging & Serial Monitor](#16-debugging--serial-monitor)
-17. [Known Constraints & Rules](#17-known-constraints--rules)
+1. [V2 Vision & Scope](#1-v2-vision--scope)
+2. [What Changes from V1](#2-what-changes-from-v1)
+3. [Hardware — Component Decisions](#3-hardware--component-decisions)
+4. [Full BOM](#4-full-bom)
+5. [Pin Assignment Table](#5-pin-assignment-table)
+6. [Power System Design](#6-power-system-design)
+7. [Haptic System](#7-haptic-system)
+8. [Audio System](#8-audio-system)
+9. [Alert UX — Layered Haptic + Audio](#9-alert-ux--layered-haptic--audio)
+10. [Firmware Architecture](#10-firmware-architecture)
+11. [Module Specifications](#11-module-specifications)
+12. [FreeRTOS Task Design](#12-freertos-task-design)
+13. [Posture State Machine](#13-posture-state-machine)
+14. [Configuration Reference](#14-configuration-reference)
+15. [PCB Design Guidelines](#15-pcb-design-guidelines)
+16. [Enclosure & Form Factor](#16-enclosure--form-factor)
+17. [Development Phases](#17-development-phases)
+18. [Branch Strategy](#18-branch-strategy)
+19. [Coding Conventions](#19-coding-conventions)
+20. [Build & Flash Commands](#20-build--flash-commands)
+21. [Known Constraints & Hard Rules](#21-known-constraints--hard-rules)
 
 ---
 
-## 1. Project Overview
+## 1. V2 Vision & Scope
 
-### What it is
-A wearable shoulder-mounted posture tracker built on the ESP32 platform. It detects slouching and poor spinal alignment in real time using an IMU sensor (GY-521 / MPU-6050) and alerts the user through audio feedback (Adafruit MAX98357A I2S amplifier + 3W 4Ω speaker).
+### What V2 is
+A product-grade wearable shoulder-mounted posture tracker. Designed for all-day wear,
+discreet alerts, and a form factor comparable to a car key fob. Built to a standard
+where it could be manufactured at small volume (50–200 units) and sold commercially.
 
-### What it is NOT (MVP scope boundary)
-- ❌ No mobile app, no BLE data streaming
-- ❌ No WiFi, no cloud connectivity, no OTA updates
-- ❌ No battery management (USB-powered only for MVP)
-- ❌ No physical enclosure or PCB in MVP
-- ❌ No display, no buttons, no IR remote in MVP
-- ❌ No medical accuracy claims — behavioural nudge tool only
+### What makes V2 different from V1
+- **Haptic alerts** — LRA motor via DRV2605L for discreet, office-friendly notifications
+- **Layered UX** — haptics for early alerts, audio only for escalation and voice clips
+- **Custom PCB** — no breakout boards, no dev kit, all ICs soldered directly
+- **Battery powered** — 350mAh LiPo, ~12–15 hour runtime with light sleep
+- **Compact form factor** — target 45×35×16mm total assembled with clip
+- **ESP32-S3** — native USB, BLE 5.0, more capable than V1 ESP32
+
+### What V2 explicitly does NOT include (scope boundary)
+- ❌ No mobile app in V2 firmware (BLE hardware is present, firmware hooks stubbed)
+- ❌ No WiFi, no OTA updates
+- ❌ No display
+- ❌ No injection-molded enclosure — 3D printed clip only in V2
+- ❌ No medical accuracy claims — behavioural nudge only
 - ❌ No Arduino framework — pure ESP-IDF + C only
 
-### Core user flow
-```
-Power on → Calibration (3s, sit upright) → Monitoring loop (indefinite)
-                                                     ↓
-                              GOOD (silent) ←→ WARNING (soft beep) ←→ BAD (alert → voice escalation)
-```
+### Target competitive position
+| Product | Price | Haptic | Audio | Standalone | Form factor |
+|---|---|---|---|---|---|
+| Upright Go 2 | $80 | ✅ | ❌ | ✅ | Adhesive patch |
+| Lumo Lift | discontinued | ✅ | ❌ | ✅ | Clip |
+| **Posture Tracker V2** | **$79–99** | **✅** | **✅ voice** | **✅** | **Shoulder clip** |
 
-### Language & Framework
-- **Language:** C (C99/C11 only — no C++ anywhere)
-- **Framework:** ESP-IDF (via PlatformIO)
-- **Build tool:** PlatformIO
-- **Target board:** ESP32 Mini Dev Kit (esp32dev board target)
+The voice escalation is the differentiator. Keep it.
 
 ---
 
-## 2. Hardware Inventory & Wiring
+## 2. What Changes from V1
 
-### Components
-
-| Component | Identifier | Notes |
+| Area | V1 | V2 |
 |---|---|---|
-| ESP32 Mini Dev Kit | Main MCU | Dual-core 240MHz, 4MB flash, 3.3V logic |
-| GY-521 (MPU-6050) | IMU sensor | From Elegoo 37-in-1 kit. I2C, address 0x68 |
-| Adafruit MAX98357A | I2S amplifier | Class D mono, 3.2W max at 4Ω |
-| Adafruit #3351 Speaker | Audio output | 3W, 4Ω — big for MVP, replace in V2 |
-| Breadboard + jumper wires | Prototyping | From Elegoo kit, no soldering for MVP |
-| USB cable | Power + flash | Laptop or power bank — no battery in MVP |
-
-### Pin Assignment Table
-
-```
-ESP32 Mini Dev Kit
-─────────────────────────────────────────────────────────
-I2C BUS (MPU-6050 / GY-521)
-  GPIO 21   →  SDA   (MPU-6050 pin: SDA)
-  GPIO 22   →  SCL   (MPU-6050 pin: SCL)
-  3.3V      →  VCC   (MPU-6050 pin: VCC)
-  GND       →  GND   (MPU-6050 pin: GND)
-  [AD0 on GY-521 left floating or tied to GND → I2C address 0x68]
-
-I2S BUS (MAX98357A amplifier)
-  GPIO 26   →  BCLK  (MAX98357A pin: BCLK)
-  GPIO 25   →  WS    (MAX98357A pin: LRC)
-  GPIO 27   →  DOUT  (MAX98357A pin: DIN)
-  5V        →  VIN   (MAX98357A pin: VIN — needs 5V, not 3.3V)
-  GND       →  GND   (MAX98357A pin: GND)
-  [GAIN pin left floating → 9dB gain, sufficient for MVP]
-  [SD pin left floating or tied HIGH → amplifier always on]
-
-SPEAKER (wired to MAX98357A output terminals)
-  MAX98357A OUT+  →  Speaker +
-  MAX98357A OUT-  →  Speaker -
-─────────────────────────────────────────────────────────
-```
-
-> **IMPORTANT:** The MAX98357A requires 5V on VIN. Use the 5V pin on the ESP32, not 3.3V. The I2S signal lines are 3.3V logic and are directly compatible with the MAX98357A.
-
-> **IMPORTANT:** Pull-up resistors on I2C — the GY-521 module includes onboard 4.7kΩ pull-ups on SDA and SCL. Do NOT add additional external pull-ups; this will overdrive the bus.
-
-### MPU-6050 Register Map (critical registers only)
-
-| Register | Address | Write Value | Purpose |
-|---|---|---|---|
-| PWR_MGMT_1 | 0x6B | 0x00 | Wake device from sleep — MUST be first |
-| WHO_AM_I | 0x75 | (read) expect 0x68 | Device presence verification |
-| SMPLRT_DIV | 0x19 | 0x09 | Sets output rate: 1kHz / (1+9) = 100Hz |
-| CONFIG | 0x1A | 0x04 | DLPF at ~21Hz bandwidth |
-| ACCEL_CONFIG | 0x1C | 0x00 | ±2g range, 16384 LSB/g sensitivity |
-| GYRO_CONFIG | 0x1B | 0x00 | ±250°/s range (gyro unused in MVP) |
-| ACCEL_XOUT_H | 0x3B | (read 6 bytes) | Burst-read: AX_H, AX_L, AY_H, AY_L, AZ_H, AZ_L |
+| MCU | ESP32 Mini Dev Kit breakout | ESP32-S3-MINI-1U stamp module |
+| IMU | GY-521 breakout (MPU-6050) | MPU-6050 bare IC, direct on PCB |
+| Haptic | None | DRV2605L + 10mm LRA motor |
+| Audio amp | MAX98357A breakout | MAX98357A bare IC, direct on PCB |
+| Speaker | 3W 4Ω (50mm, huge) | 20mm 8Ω 0.5W (CUI CMS-2009-SMT-TR) |
+| Power | USB only, no battery | MCP73831 charger + AP2112K LDO + 350mAh LiPo |
+| USB | Micro-USB on dev board | USB-C (GCT USB4135) with proper CC resistors |
+| PCB | Breadboard + breakout boards | Custom 2-layer PCB, ~45×35mm |
+| Enclosure | None | 3D printed shoulder clip |
+| Firmware alerts | Audio only | Haptic (early) + Audio (escalation) |
+| Sleep | Never sleeps | Light sleep between IMU samples |
 
 ---
 
-## 3. Toolchain & Environment
+## 3. Hardware — Component Decisions
 
-### Required installations
-```bash
-# PlatformIO CLI (or use VS Code PlatformIO extension)
-pip install platformio
+### 3.1 MCU — ESP32-S3-MINI-1U
 
-# Verify ESP-IDF toolchain is installed by PlatformIO automatically on first build
-pio run --target clean
-pio run
-```
+**Why:** Stamp module solders directly to PCB. Native USB-OTG means no CH340/CP2102
+UART bridge needed — USB-C connects directly to D+/D- for programming and serial monitor.
+BLE 5.0 is present for a future app without a hardware respin.
 
-### platformio.ini (authoritative)
-```ini
-[env:esp32]
-platform        = espressif32
-board           = esp32dev
-framework       = espidf
-board_build.flash_size = 4MB
-monitor_speed   = 115200
-monitor_filters = esp32_exception_decoder
+**Package:** LCC, 2.4GHz PCB antenna built in (variant U = IPEX connector — use
+non-U variant if board layout allows the onboard antenna clearance keep-out zone).
 
-board_build.embed_files =
-    src/main/voice/sit_up.wav
+**Key specs:**
+- Dual-core Xtensa LX7 @ 240MHz
+- 512KB SRAM, 8MB flash (module includes flash)
+- BLE 5.0, WiFi 802.11b/g/n (WiFi disabled in firmware)
+- 3.3V IO, 3.3V supply
+- Module size: 15.6×12×2.4mm
 
-build_flags =
-    -DLOG_LOCAL_LEVEL=ESP_LOG_DEBUG
-    -Wno-unused-variable
-    -Wno-unused-function
-```
+**Flash:** No external flash needed — module includes 8MB.
 
-> **`board_build.flash_size = 4MB`** must be set explicitly. Without it, PlatformIO
-> auto-detects 2MB on first run and generates a `sdkconfig.esp32` locked to 2MB,
-> which causes a partition table overlap at flash time. See Phase 0 notes in PHASES.md.
-
-### sdkconfig key settings
-These live in `sdkconfig.defaults` — do NOT edit `sdkconfig` or `sdkconfig.esp32`
-directly. Those files are auto-generated by the build from `sdkconfig.defaults`.
-Commit `sdkconfig.defaults` and `sdkconfig.esp32`. Never commit `sdkconfig.old`.
-
-```
-CONFIG_FREERTOS_UNICORE=n              # Keep both cores active
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192   # app_main needs room for init
-CONFIG_COMPILER_OPTIMIZATION_PERF=y   # Better float math speed (atan2f)
-CONFIG_I2C_ISR_IRAM_SAFE=y            # Stable I2C under FreeRTOS scheduler
-CONFIG_ESP_WIFI_ENABLED=n             # WiFi OFF — saves ~100KB RAM in MVP
-CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y      # Lock flash size — prevents 2MB mis-detection
-CONFIG_PARTITION_TABLE_OFFSET=0x9000  # ESP-IDF 5.x bootloader is ~29KB, overruns
-                                      # the default 0x8000 offset — move to 0x9000
-```
-
-> **Why `CONFIG_PARTITION_TABLE_OFFSET=0x9000`?** ESP-IDF 5.5.0 produces a
-> bootloader of ~29,536 bytes. Starting at `0x1000`, it ends at `0x8360` — past the
-> default partition table address of `0x8000`. Moving the table to `0x9000` gives
-> ~3KB of headroom. The app offset moves automatically to `0x20000`.
-
-> **If you need to reset sdkconfig:** delete `sdkconfig.esp32` and run
-> `pio run --target clean && pio run`. It will regenerate cleanly from
-> `sdkconfig.defaults`.
+**Programming:** Via USB-C directly. Hold BOOT button, press RESET, release BOOT.
+ESP-IDF USB DFU handles the rest. No UART adapter needed.
 
 ---
 
-## 4. Project File Structure
+### 3.2 IMU — MPU-6050 Bare IC
 
-```
-posture-tracker/
-├── CLAUDE.md                        ← THIS FILE — read before touching anything
-├── PHASES.md                        ← Phase-by-phase build guide
-├── platformio.ini                   ← PlatformIO project config (authoritative)
-├── CMakeLists.txt                   ← Top-level ESP-IDF CMake entry
-├── sdkconfig.defaults               ← Source-of-truth sdkconfig values (commit this)
-├── sdkconfig.esp32                  ← Auto-generated by build from sdkconfig.defaults (commit this)
-├── .gitignore                       ← Excludes .pio/, sdkconfig.old
-└── src/
-    └── main/
-        ├── CMakeLists.txt           ← Registers sources, embeds WAV file
-        ├── main.c                   ← app_main: boot sequence, init, calibrate, task launch
-        ├── mpu6050.c                ← I2C driver, angle math, low-pass filter
-        ├── mpu6050.h                ← Public API for IMU subsystem
-        ├── audio.c                  ← I2S init, sine gen, WAV playback, audio task
-        ├── audio.h                  ← Public API for audio subsystem
-        ├── posture_fsm.c            ← State machine, threshold logic, timing
-        ├── posture_fsm.h            ← Public API for FSM subsystem
-        ├── config.h                 ← ALL compile-time constants — no .c pair
-        └── voice/
-            └── sit_up.wav           ← Embedded at compile time via EMBED_FILES
-```
+**Why not change:** V1 driver is written, tested, and verified on real hardware across
+two mounting orientations. The bare IC is identical to the GY-521 breakout minus the
+LDO and pull-up resistors — those move onto the custom PCB.
 
-> **Note on sdkconfig files:**
-> - `sdkconfig.defaults` — hand-written, version-controlled, source of truth
-> - `sdkconfig.esp32` — auto-generated by `pio run`, version-controlled so the build
->   is reproducible on any machine without running menuconfig
-> - Never commit `sdkconfig.old` — it is in `.gitignore`
-> - If `sdkconfig.esp32` gets corrupted or stale, delete it and run `pio run` to regenerate
+**Key differences from V1 (GY-521 breakout) to bare IC:**
+- Add 4.7kΩ pull-up on SDA and SCL to 3.3V on the PCB
+- Add 100nF bypass cap on VCC pin to GND
+- AD0 tied to GND → address 0x68 (same as V1)
+- INT pin broken out to GPIO but unused in V2 firmware (stubbed for V3 wake-on-motion)
 
-### src/main/CMakeLists.txt
-```cmake
-idf_component_register(
-    SRCS
-        "main.c"
-        "mpu6050.c"
-        "audio.c"
-        "posture_fsm.c"
-    INCLUDE_DIRS "."
-    EMBED_FILES
-        "voice/sit_up.wav"
-)
-
-target_link_libraries(${COMPONENT_LIB} PUBLIC m)
-```
-
-> **Why `-lm` (math lib)?** We use `atan2f()` and `sqrtf()` from `<math.h>`. The `m` target links the math library. Without it the build will fail with undefined reference to `atan2f`.
+**Package:** QFN-24, 4×4mm
 
 ---
 
-## 5. Architecture & Design Decisions
+### 3.3 Haptic Driver — DRV2605L
 
-### Layered Architecture
+**Why:** I2C interface shares existing bus with MPU-6050. No new GPIO pins consumed.
+I2C address 0x5A — no conflict with MPU-6050 at 0x68. Has 123 built-in waveform
+patterns addressable by index — no need to generate waveforms in firmware. Handles
+all LRA driving complexity (resonance tracking, overdrive, brake) automatically.
 
+**Package:** TSSOP-10, 3×3mm (DRV2605LDGS — chosen over WSON-12 for easier PCB assembly)
+
+**Key connections:**
+- SDA → GPIO8 (shared I2C bus)
+- SCL → GPIO9 (shared I2C bus)
+- IN/TRIG → not used (using I2C mode, not GPIO trigger mode)
+- EN → 3.3V (always enabled)
+- LRA+ / LRA- → motor pads
+
+**I2C init sequence:**
 ```
-┌─────────────────────────────────────────────┐
-│  Layer 4: Application Logic                 │
-│  posture_fsm.c — decisions, state, timing   │
-├─────────────────────────────────────────────┤
-│  Layer 3: Task Coordination                 │
-│  FreeRTOS tasks, mutex, event group, queue  │
-├─────────────────────────────────────────────┤
-│  Layer 2: Driver Abstraction                │
-│  mpu6050.c (I2C + math)  audio.c (I2S)     │
-├─────────────────────────────────────────────┤
-│  Layer 1: Hardware / ESP-IDF               │
-│  driver/i2c.h  driver/i2s.h  nvs_flash.h  │
-└─────────────────────────────────────────────┘
+Write 0x01 to register 0x01  (MODE: internal trigger, device out of standby)
+Write 0x00 to register 0x1D  (LRA mode, open-loop)
+Write 0x36 to register 0x1A  (LRA drive mode)
+Write waveform_id to 0x04    (select pattern from library)
+Write 0xFF to 0x05           (end of waveform sequence)
+Write 0x01 to 0x0C           (GO — fire the waveform)
 ```
-
-**Rule:** Upper layers may call lower layers. Lower layers must NEVER call up.
-`posture_fsm.c` must never call `i2c_master_cmd_begin()` directly.
-`mpu6050.c` must never call `xQueueSend()` directly.
-
-### Why accel-only for MVP angle math?
-- Accelerometer gives **absolute tilt** — it always knows where gravity is
-- Gyroscope gives **rate of change** only — integrates over time → drifts
-- For slow postural movements, accel alone is accurate enough
-- V2 will add a complementary filter: `angle = 0.98*(angle + gyro*dt) + 0.02*accel_angle`
-
-### Why FreeRTOS event group instead of polling?
-- Task B (FSM) blocks on `xEventGroupWaitBits()` — burns **zero CPU** while waiting
-- Task A sets the bit after every IMU write — instantly unblocks Task B
-- Polling with `vTaskDelay` wastes cycles and adds unnecessary jitter
-
-### Why non-blocking queue send from FSM to audio?
-- Audio playback is slow (hundreds of ms). If the FSM blocked waiting for the queue, it would miss IMU samples during playback.
-- `xQueueSend(..., 0)` = "send if space available, otherwise drop and continue"
-- Queue depth of 5 ensures commands don't pile up. If full, the drop is acceptable.
-
-### CPU Core Assignment
-```
-Core 0: Task A (IMU reader, priority 5) + Task B (FSM, priority 4)
-Core 1: Task C (audio player, priority 3)
-```
-I2S DMA is managed by hardware and works better isolated to core 1. Keeping I2C and the state machine on core 0 avoids cross-core cache invalidation on the shared IMU struct.
 
 ---
 
-## 6. Configuration Reference (config.h)
+### 3.4 LRA Motor — Vybronics VG1030001XH ✅ Confirmed & Ordered 2026-04-26
 
-> **Rule:** Every value in this table must live in `config.h` as a named `#define`. No magic numbers in `.c` files. Period.
+**Part:** Vybronics VG1030001XH — Digikey 1670-VG1030001XH-ND
+- 10mm diameter, Z-axis LRA
+- 2VAC rated, 210Hz resonant frequency, 1.5G force
+- Pre-attached wire leads — no soldering to contact pads required
+- Active part, not discontinued — PCB V2 safe to design around
+- Ordered qty 3: 1 for Phase 7 breadboard, 2 spares
+
+**Why LRA over ERM coin motor:**
+- ERM: crude sustained buzz, no pattern differentiation
+- LRA: sharp discrete taps, physically distinct from a buzz
+- DRV2605L is optimised for LRA — automatic resonance frequency tracking
+
+**Mounting:** Adhesive pad on underside of PCB. Connects via two pads to DRV2605L
+output. No polarity — LRA is an AC-driven coil.
+
+**Key specs:**
+- Diameter: 10mm, thickness: 2.7mm
+- Rated voltage: 1.8Vrms
+- Resonant frequency: ~175Hz (DRV2605L tracks this automatically in LRA mode)
+- Max force: ~0.9G
+
+---
+
+### 3.5 Audio Amplifier — MAX98357A Bare IC
+
+**Why keep:** V1 driver works. I2S timing verified. WAV sample rate switching works.
+Moving from breakout to bare IC requires adding the minimal support components
+(MODE resistor for mono channel selection, GAIN resistor for 9dB, 1µF bypass caps).
+
+**Package:** WLP-16, 1.62×1.12mm (very small — requires reflow, not hand-soldering)
+
+**Key differences from V1 (breakout) to bare IC:**
+- SD_MODE pin: pull to 3.3V via 100kΩ (always on) or drive from GPIO for software mute
+- GAIN pin: leave floating for 9dB, or set resistor divider for different gain
+- Add 1µF + 100nF on PVDD, 100nF on DVDD
+- Speaker output differential (OUT+ / OUT-) connects directly to speaker pads
+
+**IMPORTANT:** SD_MODE pulled low = shutdown. SD_MODE floating = invalid state.
+Always define its state explicitly — pull high for V2.
+
+---
+
+### 3.6 Speaker — 20mm 8Ω 0.5W
+
+**Part:** CUI Devices CMS-2009-SMT-TR or PUI Audio AS02008AO-3-R
+
+**Why 20mm:** Minimum diameter for intelligible voice clip playback. Below 15mm,
+frequency response drops off below 1kHz — voice becomes unintelligible. 20mm gives
+adequate response down to ~500Hz.
+
+**Why 8Ω:** MAX98357A supports 4Ω and 8Ω. 8Ω at 0.5W is fine for alert volumes.
+The lower power draw vs 4Ω helps battery life.
+
+**Mounting:** Edge-mount on PCB with SMD spring tabs, or through-hole pins.
+Speaker faces outward toward shoulder — sound bounces off clothing, still audible.
+
+**Volume expectation:** Lower than V1 3W speaker. Acceptable — haptics handle
+early alerts, audio only fires for escalation and voice clips at point where
+user needs to hear it clearly regardless.
+
+---
+
+### 3.7 LiPo Charging IC — MCP73831T-2ACI/OT
+
+**Why:** Industry standard single-cell LiPo charger. Simple to implement —
+one IC, one resistor (sets charge current), one LED indicator, two caps.
+PROG resistor for 100mA charge rate from USB: R = 1000V/Icharge = 10kΩ.
+
+**Package:** SOT-23-5
+
+**Charge current:** 100mA (conservative — protects the 350mAh cell, ~3.5 hour charge)
+
+**Status output:** Open-drain STAT pin → LED to 3.3V
+- Charging: LED on
+- Done: LED off
+- No battery: LED blinks
+
+**IMPORTANT:** MCP73831 has no reverse-polarity protection. Battery connector
+must be keyed (JST-PH 2-pin, 2mm pitch) to prevent backwards insertion.
+
+---
+
+### 3.8 LDO Regulator — AP2112K-3.3TRG1
+
+**Why:** LiPo outputs 3.0–4.2V depending on charge state. All ICs need stable 3.3V.
+AP2112K: 600mA max, dropout 250mV, tiny SOT-23-5 package.
+
+**Headroom check:**
+- LiPo minimum: 3.0V (cutoff)
+- LDO dropout at 600mA: 250mV max
+- Output at 3.0V input: 3.0 - 0.25 = 2.75V — too low
+- **Fix:** Set LiPo cutoff at 3.3V in firmware low-battery detection
+- At 3.3V LiPo: 3.3 - 0.25 = 3.05V → below 3.3V regulation → brownout
+
+**Better fix:** Use AP2112K-3.3 with EN pin. When LiPo < 3.4V, log warning, play
+low-battery beep, enter deep sleep. User charges before brownout occurs.
+
+**Peak current check:**
+- ESP32-S3 active: 100mA
+- MPU-6050: 4mA
+- MAX98357A peak (audio burst): 150mA
+- DRV2605L + LRA: 80mA
+- Total peak: ~334mA → well within 600mA rating ✅
+
+---
+
+### 3.9 USB-C Connector — GCT USB4135-GF-A
+
+**Configuration:** USB 2.0 only (no USB 3.x lanes needed)
+
+**CC pins:** Both CC1 and CC2 must have 5.1kΩ pull-down to GND.
+Without these resistors, USB-C chargers assume a cable (not a device) is connected
+and may not supply current. This is the single most common USB-C design mistake.
+
+**D+ / D-:** Connect directly to ESP32-S3 USB OTG pins for native USB programming.
+No CH340 or CP2102 needed.
+
+**VBUS:** Routes to MCP73831 VBUS input for charging. Add 1A polyfuse in series
+as reverse-current protection.
+
+---
+
+### 3.10 Buttons — Alps SKRPABE010
+
+- 3.9×2.9mm footprint, 1.6mm height
+- SMD, 160gf actuation force — positive click feel
+- **SW1 (BOOT/CAL):** Dual function — hold at power on for ESP32 boot mode,
+  single press during operation to trigger recalibration
+- **SW2 (SNOOZE):** Single press = 10-minute alert snooze; long press = mute toggle
+
+Both buttons: GPIO with internal pull-up enabled, active low.
+
+---
+
+## 4. Full BOM
+
+| Ref | Component | Part Number | Package | Qty | Unit Cost | Notes |
+|---|---|---|---|---|---|---|
+| U1 | ESP32-S3-MINI-1U | ESP32-S3-MINI-1U-N8 | LCC | 1 | $2.50 | 8MB flash variant |
+| U2 | IMU | MPU-6050 | QFN-24 | 1 | $0.30 | I2C addr 0x68 |
+| U3 | Haptic driver | DRV2605LDGSR | WSON-12 | 1 | $1.20 | I2C addr 0x5A |
+| U4 | Audio amp | MAX98357AEWL | WLP-16 | 1 | $1.50 | Needs reflow |
+| U5 | LiPo charger | MCP73831T-2ACI/OT | SOT-23-5 | 1 | $0.25 | |
+| U6 | LDO 3.3V | AP2112K-3.3TRG1 | SOT-23-5 | 1 | $0.15 | 600mA |
+| M1 | LRA motor | Vybronics VG1030001XH | — | 1 | $2.96 | 10mm, LRA, 210Hz, wire leads — confirmed 2026-04-26 |
+| LS1 | Speaker | MECCANIXITY 20mm 8Ω 1W | SMD | 1 | $2.12 | 20mm, 8Ω, 1W — confirmed 2026-04-26 |
+| J1 | USB-C | GCT USB4135-GF-A | SMD | 1 | $0.40 | 2.0 only |
+| J2 | Battery | JST-PH 2-pin | THT | 1 | $0.10 | Keyed, 2mm pitch |
+| SW1 | Button BOOT/CAL | Alps SKRPABE010 | SMD | 1 | $0.10 | Footprint: SKRPABE010:SW_SKRPABE010 |
+| SW2 | Button SNOOZE | Alps SKRPABE010 | SMD | 1 | $0.10 | Footprint: SKRPABE010:SW_SKRPABE010 |
+| SW3 | Button RESET | Alps SKRPABE010 | SMD | 1 | $0.10 | Footprint: SKRPABE010:SW_SKRPABE010 — manual EN reset |
+| LED2 | Snooze indicator | Yellow LED | 0805 | 1 | $0.02 | GPIO46 via R13 1kΩ — on when snooze active |
+| R12 | HAPTIC_EN pull-up | 10kΩ | 0402 | 1 | $0.01 | DRV2605L EN pull-up to 3.3V |
+| R13 | Snooze LED limit | 1kΩ | 0402 | 1 | $0.01 | LED2 current limit |
+| C14 | VBAT bulk cap | 47µF | 0805 | 1 | $0.05 | Near J2 battery connector |
+| BT1 | LiPo 350mAh | Adafruit #2750 | — | 1 | $6.95 | PCM protected, JST-PH, 36×20×5.6mm — confirmed 2026-04-26 |
+| R1,R2 | I2C pull-up 4.7kΩ | — | 0402 | 2 | $0.01 | SDA, SCL |
+| R3 | MCP73831 PROG | 10kΩ | 0402 | 1 | $0.01 | Sets 100mA charge |
+| R4,R5 | USB-C CC | 5.1kΩ | 0402 | 2 | $0.01 | Both CC pins |
+| R6 | Charge LED | 1kΩ | 0402 | 1 | $0.01 | |
+| C1–C4 | Bypass caps | 100nF | 0402 | 4 | $0.01 | Per IC VCC pin |
+| C5,C6 | Bulk caps | 10µF | 0805 | 2 | $0.05 | LDO in/out |
+| C7 | Audio bulk | 22µF | 0805 | 1 | $0.05 | MAX98357A PVDD |
+| F1 | Polyfuse | 500mA | 0805 | 1 | $0.10 | VBUS protection |
+| LED1 | Charge indicator | Green LED | 0402 | 1 | $0.02 | |
+| — | Passives misc | — | 0402 | ~10 | $0.10 | |
+| **TOTAL** | | | | | **~$11.30** | |
+
+**Manufacturing cost estimate (JLCPCB, 50 units, assembled):**
+- PCB fabrication: ~$0.80/unit
+- SMT assembly: ~$4.00/unit
+- Components (from JLCPCB parts library): ~$8.00/unit
+- **Total per unit: ~$13–15**
+- **Target retail: $79–99**
+
+---
+
+## 5. Pin Assignment Table
+
+```
+ESP32-S3-MINI-1U
+──────────────────────────────────────────────────────────────
+I2C BUS (MPU-6050 + DRV2605L share this bus)
+  GPIO 8    →  SDA   (MPU-6050 pin SDA, DRV2605L pin SDA)
+  GPIO 9    →  SCL   (MPU-6050 pin SCL, DRV2605L pin SCL)
+  [4.7kΩ pull-up on SDA and SCL to 3.3V on PCB]
+  [MPU-6050 AD0 → GND → address 0x68]
+  [DRV2605L address fixed 0x5A — no conflict]
+
+I2S BUS (MAX98357A)
+  GPIO 26   →  BCLK  (MAX98357A BCLK)
+  GPIO 33   →  WS    (MAX98357A LRC)
+  GPIO 21   →  DOUT  (MAX98357A DIN)
+
+BUTTONS
+  GPIO 0    →  SW1 BOOT/CAL   (active low, internal pull-up, also ESP32 boot pin)
+  GPIO 35   →  SW2 SNOOZE     (active low, internal pull-up)
+
+POWER
+  EN        →  AP2112K enable (tie HIGH — always on)
+  VBAT_SENSE→  GPIO34 ADC1 (voltage divider on LiPo for battery monitoring)
+
+AUDIO MUTE
+  GPIO 48   →  AUDIO_SD (MAX98357A SD_MODE — software mute)
+
+STATUS LED
+  LED1 → MCP73831 STAT pin via R6 1kΩ (hardware charge indicator, not GPIO controlled)
+
+SNOOZE LED
+  GPIO 46   →  SNOOZE_LED net → R13 (1kΩ) → LED2 → GND (on = snooze active)
+
+RESET BUTTON
+  SW3       →  EN pin (manual reset — press to pull EN low momentarily)
+
+RESERVED / FUTURE
+  GPIO 4    →  MPU-6050 INT (MPU_INT net — not used in V2 firmware, break out on PCB)
+  GPIO 5    →  DRV2605L EN  (HAPTIC_EN net — pulled HIGH via R12 10kΩ, break out for future control)
+
+USB (native, direct to connector)
+  GPIO 19   →  USB D-
+  GPIO 20   →  USB D+
+──────────────────────────────────────────────────────────────
+```
+
+---
+
+## 6. Power System Design
+
+### Power path
+
+```
+USB-C (5V) → Polyfuse (F1) → MCP73831 → LiPo (3.7V)
+                                             ↓
+                                        AP2112K-3.3
+                                             ↓
+                                          3.3V rail
+                                    ┌──────┴──────┐
+                               ESP32-S3       All ICs
+```
+
+### Battery life calculation
+
+| State | Current draw | Time per cycle |
+|---|---|---|
+| ESP32-S3 active (IMU read) | 80mA | 5ms |
+| Light sleep | 2mA | 95ms |
+| Average per 100ms cycle (no alerts) | **5.9mA** | — |
+| Audio burst (voice clip, ~3s) | 180mA | occasional |
+| Haptic fire (tap, ~0.5s) | 88mA | occasional |
+
+**350mAh ÷ 6mA average ≈ 58 hours theoretical**
+**Real world (audio, haptic, occasional BLE): 12–15 hours**
+
+### Low battery handling
 
 ```c
-#pragma once
+// Check every 60 seconds via ADC on GPIO34
+// Voltage divider: LiPo → 100kΩ → GPIO34 → 100kΩ → GND
+// ADC reads 0–3.3V → multiply by 2 for actual LiPo voltage
 
-// ── I2C (MPU-6050) ────────────────────────────────────────────────────────
-#define I2C_MASTER_PORT         I2C_NUM_0
-#define I2C_MASTER_SDA_IO       21
-#define I2C_MASTER_SCL_IO       22
-#define I2C_MASTER_FREQ_HZ      400000      // 400kHz Fast Mode
-#define I2C_TIMEOUT_MS          100
+if (lipo_voltage < 3.5f) {
+    // Play low battery beep pattern
+    // Log warning
+}
+if (lipo_voltage < 3.3f) {
+    // Play shutdown tone
+    // esp_deep_sleep_start()
+}
+```
 
-// ── MPU-6050 registers ────────────────────────────────────────────────────
-#define MPU6050_ADDR            0x68
-#define MPU_REG_PWR_MGMT_1     0x6B
-#define MPU_REG_WHO_AM_I        0x75
-#define MPU_REG_SMPLRT_DIV     0x19
-#define MPU_REG_CONFIG          0x1A
-#define MPU_REG_ACCEL_CONFIG    0x1C
-#define MPU_REG_GYRO_CONFIG     0x1B
-#define MPU_REG_ACCEL_XOUT_H   0x3B
-#define MPU_WHO_AM_I_RESPONSE   0x68
-#define MPU_ACCEL_SENSITIVITY   16384.0f    // LSB/g for ±2g range
+### Sleep implementation
 
-// ── I2S (MAX98357A) ───────────────────────────────────────────────────────
-#define I2S_PORT_NUM            I2S_NUM_0
-#define I2S_BCLK_IO             26
-#define I2S_WS_IO               25
-#define I2S_DOUT_IO             27
-#define I2S_SAMPLE_RATE_HZ      44100
-#define I2S_BITS_PER_SAMPLE     16
-#define I2S_DMA_BUF_COUNT       8
-#define I2S_DMA_BUF_LEN_SMPLS  512
-
-// ── IMU sampling ─────────────────────────────────────────────────────────
-#define IMU_SAMPLE_RATE_MS      100         // Task A loop delay
-#define LPF_ALPHA               0.15f       // Exponential moving average coefficient
-
-// ── Calibration ───────────────────────────────────────────────────────────
-#define CAL_TOTAL_SAMPLES       300         // 3 seconds at 100ms per sample
-#define CAL_DISCARD_SAMPLES     50          // Discard first 500ms (sensor settle)
-#define CAL_MAX_STDDEV_DEG      5.0f        // Reject if user moved during cal
-#define CAL_VALID_SAMPLES       (CAL_TOTAL_SAMPLES - CAL_DISCARD_SAMPLES)
-
-// ── Posture thresholds ────────────────────────────────────────────────────
-#define WARN_THRESH_DEG         10.0f       // ° deviation → enter WARNING
-#define BAD_THRESH_DEG          20.0f       // ° deviation → enter BAD
-#define JUMP_FILTER_DEG         60.0f       // ° deviation → discard sample (violent movement)
-
-// ── State machine timings ─────────────────────────────────────────────────
-#define WARN_GRACE_MS           3000        // ms sustained above WARN before WARNING fires
-#define BAD_GRACE_MS            5000        // ms sustained above BAD before BAD fires
-#define RESET_COOLDOWN_MS       2000        // ms in RESET before returning to GOOD
-#define REPEAT_ALERT_MS         30000       // ms between repeated BAD alerts
-#define ESCALATION_CAP          3           // Max escalation cycles before silence
-#define GOOD_STREAK_REWARD_MS   300000      // ms of GOOD before reward chime (5 min)
-
-// ── Audio volumes (0.0 – 1.0) ─────────────────────────────────────────────
-#define VOL_WARNING             0.35f
-#define VOL_BAD                 0.80f
-#define VOL_CHIME               0.55f
-#define VOL_VOICE               0.90f
-#define VOL_BOOT                0.50f
-#define TONE_FADE_MS            10          // Fade in/out duration to kill clicks
-
-// ── FreeRTOS ─────────────────────────────────────────────────────────────
-#define AUDIO_QUEUE_DEPTH       5
-#define TASK_STACK_IMU          4096
-#define TASK_STACK_FSM          4096
-#define TASK_STACK_AUDIO        8192
-#define TASK_PRIO_IMU           5
-#define TASK_PRIO_FSM           4
-#define TASK_PRIO_AUDIO         3
-#define TASK_CORE_IMU           0
-#define TASK_CORE_FSM           0
-#define TASK_CORE_AUDIO         1
-#define MUTEX_TIMEOUT_MS        5           // Max wait for imu_mutex before skipping
+Between IMU samples, enter light sleep:
+```c
+// In task_read_imu — replaces vTaskDelay()
+esp_sleep_enable_timer_wakeup(IMU_SAMPLE_RATE_MS * 1000);
+esp_light_sleep_start();
+// I2C and I2S peripherals resume automatically on wake
 ```
 
 ---
 
-## 7. Module Specifications
+## 7. Haptic System
 
-### 7.1 mpu6050.h — Public API
+### DRV2605L initialisation sequence
+
+```c
+// drv2605l_init() — called once in app_main before tasks launch
+i2c_write_reg(DRV2605L_ADDR, 0x01, 0x00);   // Mode: internal trigger, standby off
+i2c_write_reg(DRV2605L_ADDR, 0x1D, 0xA8);   // LRA open loop, rated voltage
+i2c_write_reg(DRV2605L_ADDR, 0x03, 0x02);   // Library: LRA
+```
+
+### Waveform index mapping
+
+The DRV2605L has 123 built-in waveforms. Selected waveforms for this product:
+
+| Alert type | Waveform index | Feel |
+|---|---|---|
+| `HAPTIC_WARN_SINGLE` | 1 | Single sharp tap |
+| `HAPTIC_WARN_DOUBLE` | 10 | Double tap |
+| `HAPTIC_BAD_STRONG` | 14 | Strong double tap |
+| `HAPTIC_ESCALATION` | 47 | Triple pulse |
+| `HAPTIC_CORRECTION` | 56 | Long smooth buzz — reward feel |
+| `HAPTIC_CAL_PROMPT` | 52 | Three short pulses |
+| `HAPTIC_CAL_SUCCESS` | 58 | Rising confirmation |
+| `HAPTIC_CAL_FAIL` | 38 | Descending rejection |
+
+**Note:** Waveform indices are verified against the DRV2605L datasheet Table 2.
+Always cross-reference before changing — incorrect indices produce no output, not
+an error.
+
+### Firing a waveform
+
+```c
+void haptic_play(uint8_t waveform_id)
+{
+    i2c_write_reg(DRV2605L_ADDR, 0x04, waveform_id);  // Waveform slot 0
+    i2c_write_reg(DRV2605L_ADDR, 0x05, 0x00);          // End of sequence
+    i2c_write_reg(DRV2605L_ADDR, 0x0C, 0x01);          // GO
+}
+```
+
+`haptic_play()` is non-blocking — DRV2605L executes the waveform autonomously.
+The audio task can fire haptic and immediately return to blocking on the queue.
+
+---
+
+## 8. Audio System
+
+### What changes from V1
+
+- Speaker is smaller (20mm, 0.5W) — lower max volume, adequate for escalation alerts
+- MAX98357A is bare IC on PCB — same driver, same code
+- SD_MODE pin now driven by GPIO48 for software mute capability
+- Alert layer mapping changes — see Section 9
+
+### What stays identical from V1
+
+- `audio_init()` — identical
+- `audio_play_tone()` — identical
+- `audio_play_sequence()` — identical
+- `audio_play_wav()` — identical (sample rate switching preserved)
+- All WAV files — `sit_up.wav`, `thank_you_good_work.wav` — identical
+
+### Software mute via SD_MODE
+
+```c
+#define AUDIO_SD_MODE_GPIO  48
+
+void audio_mute(bool mute)
+{
+    gpio_set_level(AUDIO_SD_MODE_GPIO, mute ? 0 : 1);
+}
+```
+
+Called by SW2 snooze button handler. Mutes speaker while haptics continue.
+
+---
+
+## 9. Alert UX — Layered Haptic + Audio
+
+This is the core UX design for V2. Haptics handle discreet early alerts.
+Audio escalates only when haptics have been ignored.
+
+```
+────────────────────────────────────────────────────────
+ GOOD STATE
+ Silent. No alerts. Streak timer running.
+ After 30s good streak → HAPTIC_CORRECTION (reward pulse, no sound)
+
+────────────────────────────────────────────────────────
+ 10° deviation, 3s sustained → enter WARNING
+
+ WARNING ENTRY
+   Haptic: HAPTIC_WARN_SINGLE — one sharp tap
+   Audio:  none
+   → Office-friendly. Colleague next to you notices nothing.
+
+ WARNING SUSTAINED (no correction after 3s more)
+   Haptic: HAPTIC_WARN_DOUBLE — double tap
+   Audio:  none
+   → Second chance, still discreet.
+
+────────────────────────────────────────────────────────
+ 20° deviation, 5s sustained → enter BAD
+
+ BAD ENTRY
+   Haptic: HAPTIC_BAD_STRONG — strong double tap
+   Audio:  double beep (first time audio fires)
+   → Getting serious. Audio starts here.
+
+ BAD +8s (escalation 2)
+   Haptic: HAPTIC_ESCALATION — triple pulse
+   Audio:  double beep
+
+ BAD +16s (escalation 3)
+   Haptic: HAPTIC_ESCALATION
+   Audio:  double beep
+
+ BAD +24s onwards (cap reached, voice loop)
+   Haptic: HAPTIC_ESCALATION — every repeat
+   Audio:  "Sit up straight" WAV — repeating every 8s
+   → Cannot be missed.
+
+────────────────────────────────────────────────────────
+ Posture corrected → enter RESET
+
+ RESET ENTRY
+   Haptic: HAPTIC_CORRECTION — long smooth reward pulse
+   Audio:  "Thank you good work" WAV
+   → Satisfying physical + audio confirmation.
+
+ After 2s cooldown → GOOD
+
+────────────────────────────────────────────────────────
+ SW2 SNOOZE pressed
+   All audio muted for 10 minutes
+   Haptics continue — silent session (meetings, etc.)
+   LED blinks slowly to indicate snooze active
+```
+
+---
+
+## 10. Firmware Architecture
+
+### New vs changed vs unchanged from V1
+
+```
+UNCHANGED (copy from V1 branch, zero modification):
+  mpu6050.c / mpu6050.h      — I2C driver, angle math, EMA filter
+  audio.c / audio.h          — I2S driver, tone gen, WAV playback, audio task
+  posture_fsm.c / posture_fsm.h — state machine (audio commands change, logic unchanged)
+  config.h                   — most values unchanged, new ones added
+
+NEW FILES:
+  haptic.c / haptic.h        — DRV2605L I2C driver, waveform playback
+  power.c / power.h          — Battery ADC read, low battery detection, sleep entry
+  buttons.c / buttons.h      — Debounced button handler, long press detection
+
+MODIFIED:
+  main.c                     — Add haptic_init(), power_init(), button_init()
+                               Add button event task
+  audio.h                    — Add AUDIO_CMD_HAPTIC_* commands to enum
+  task_audio() in audio.c    — Dispatch haptic commands to haptic_play()
+  config.h                   — Add haptic, power, button constants
+```
+
+### Layered architecture (same rule as V1 — no upward calls)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Layer 4: Application Logic                             │
+│  posture_fsm.c — unchanged state machine logic          │
+├─────────────────────────────────────────────────────────┤
+│  Layer 3: Task Coordination                             │
+│  FreeRTOS mutex, event group, queue — unchanged         │
+│  buttons.c — new, posts events to queue                 │
+├─────────────────────────────────────────────────────────┤
+│  Layer 2: Driver Abstraction                            │
+│  mpu6050.c   audio.c   haptic.c   power.c              │
+├─────────────────────────────────────────────────────────┤
+│  Layer 1: Hardware / ESP-IDF                           │
+│  driver/i2c.h  driver/i2s.h  driver/adc.h  gpio.h    │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 11. Module Specifications
+
+### 11.1 haptic.h — Public API
 
 ```c
 /**
- * @brief Initialise I2C master bus and configure MPU-6050.
- *        Wakes device, sets sample rate, DLPF, accel range.
- *        Verifies WHO_AM_I register.
- * @return ESP_OK on success, ESP_FAIL if device not found or I2C init fails.
+ * @brief Initialise DRV2605L over I2C. Configure for LRA open-loop mode.
+ *        I2C bus must already be initialised by mpu6050_init() before calling.
+ * @return ESP_OK on success, ESP_FAIL if device not found on I2C bus.
  */
-esp_err_t mpu6050_init(void);
+esp_err_t haptic_init(void);
 
 /**
- * @brief Read current filtered pitch and roll angles.
- *        Performs I2C burst read, scales raw values, computes angles,
- *        applies exponential moving average filter in-place (stateful).
- * @param[out] pitch  Filtered pitch angle in degrees (forward/backward tilt)
- * @param[out] roll   Filtered roll angle in degrees (sideways tilt)
- * @return ESP_OK on success, ESP_FAIL on I2C error.
+ * @brief Fire a haptic waveform from the DRV2605L built-in library.
+ *        Non-blocking — DRV2605L executes autonomously after GO bit is set.
+ * @param waveform_id  Waveform index 1–123 per DRV2605L datasheet Table 2.
  */
-esp_err_t mpu6050_read_angles(float *pitch, float *roll);
-
-/**
- * @brief Reset the internal low-pass filter state to zero.
- *        Call at the start of calibration to flush stale filter state.
- */
-void mpu6050_reset_filter(void);
+void haptic_play(uint8_t waveform_id);
 ```
 
-**Internal (static, not in header):**
-- `mpu6050_write_reg(uint8_t reg, uint8_t val)` — single register write
-- `mpu6050_read_regs(uint8_t reg, uint8_t *buf, size_t len)` — burst read
-- `prev_pitch`, `prev_roll` — static float state for EMA filter
-
-### 7.2 audio.h — Public API
+### 11.2 power.h — Public API
 
 ```c
 /**
- * @brief Initialise I2S driver with configured port, pins, sample rate.
- * @return ESP_OK on success, ESP_FAIL if driver install fails.
+ * @brief Initialise ADC for battery voltage monitoring on VBAT_SENSE_GPIO.
+ *        Configures voltage divider reading. Call once in app_main.
  */
-esp_err_t audio_init(void);
+esp_err_t power_init(void);
 
 /**
- * @brief Generate and play a pure sine wave tone.
- *        Blocking — returns when tone finishes playing.
- *        Applies 10ms amplitude fade-in and fade-out envelope.
- * @param freq_hz   Tone frequency in Hz
- * @param dur_ms    Tone duration in milliseconds
- * @param volume    Volume scale 0.0 (silent) to 1.0 (full scale)
+ * @brief Read current LiPo voltage.
+ * @return Voltage in volts (e.g. 3.85f). Returns 0.0f on ADC error.
  */
-void audio_play_tone(uint16_t freq_hz, uint16_t dur_ms, float volume);
+float power_read_battery_voltage(void);
 
 /**
- * @brief Play a sequence of tones with gaps between them.
- * @param tones   Array of tone_t structs { freq_hz, dur_ms, volume, gap_ms }
- * @param count   Number of elements in the tones array
+ * @brief Check and handle low battery condition.
+ *        Plays warning below LOW_BATTERY_WARN_V.
+ *        Enters deep sleep below LOW_BATTERY_CUTOFF_V.
+ *        Call periodically from a low-priority task, not from FSM.
  */
-void audio_play_sequence(const tone_t *tones, uint8_t count);
-
-/**
- * @brief Play a raw PCM WAV file stored in flash.
- *        Skips the 44-byte WAV header. Writes remaining bytes as PCM to I2S.
- *        Blocking — returns when clip finishes.
- * @param data   Pointer to WAV file data (from embedded flash symbol)
- * @param len    Total byte length of WAV file (including header)
- */
-void audio_play_wav(const uint8_t *data, uint32_t len);
-
-/**
- * @brief FreeRTOS task entry point for the audio player.
- *        Blocks on audio_queue. Dispatches commands to playback functions.
- *        Pin to core 1 with stack TASK_STACK_AUDIO.
- */
-void task_audio(void *arg);
+void power_check_battery(void);
 ```
 
-**tone_t struct:**
-```c
-typedef struct {
-    uint16_t freq_hz;
-    uint16_t dur_ms;
-    float    volume;
-    uint16_t gap_ms;   // silence after this tone before next tone
-} tone_t;
-```
+### 11.3 buttons.h — Public API
 
-**Audio command enum:**
 ```c
 typedef enum {
+    BTN_CAL_SHORT_PRESS,     // SW1 < 500ms
+    BTN_CAL_LONG_PRESS,      // SW1 > 2000ms (factory reset / re-cal)
+    BTN_SNOOZE_SHORT_PRESS,  // SW2 < 500ms (10 min snooze)
+    BTN_SNOOZE_LONG_PRESS,   // SW2 > 2000ms (mute toggle)
+} button_event_t;
+
+/**
+ * @brief Initialise GPIO inputs with debounce for SW1 and SW2.
+ *        Posts button_event_t to g_button_queue on each detected press.
+ */
+esp_err_t buttons_init(void);
+
+extern QueueHandle_t g_button_queue;
+```
+
+### 11.4 audio_cmd_e — Updated enum (additions only)
+
+```c
+typedef enum {
+    // V1 commands — unchanged
     AUDIO_CMD_BOOT_READY,
     AUDIO_CMD_CAL_PROMPT,
     AUDIO_CMD_CAL_SUCCESS,
@@ -461,602 +703,372 @@ typedef enum {
     AUDIO_CMD_REWARD_CHIME,
     AUDIO_CMD_CORRECTION_CONFIRM,
     AUDIO_CMD_STOP,
+    // V2 additions — haptic commands routed through audio task
+    AUDIO_CMD_HAPTIC_WARN_SINGLE,
+    AUDIO_CMD_HAPTIC_WARN_DOUBLE,
+    AUDIO_CMD_HAPTIC_BAD_STRONG,
+    AUDIO_CMD_HAPTIC_ESCALATION,
+    AUDIO_CMD_HAPTIC_CORRECTION,
+    AUDIO_CMD_HAPTIC_CAL_PROMPT,
+    AUDIO_CMD_HAPTIC_CAL_SUCCESS,
+    AUDIO_CMD_HAPTIC_CAL_FAIL,
+    AUDIO_CMD_SNOOZE_ON,
+    AUDIO_CMD_SNOOZE_OFF,
 } audio_cmd_e;
-
-typedef struct {
-    audio_cmd_e type;
-} audio_cmd_t;
 ```
-
-### 7.3 posture_fsm.h — Public API
-
-```c
-/**
- * @brief Set the reference baseline angles.
- *        Called once by calibration after baseline is computed.
- * @param pitch  Baseline pitch in degrees
- * @param roll   Baseline roll in degrees
- */
-void posture_fsm_set_baseline(float pitch, float roll);
-
-/**
- * @brief FreeRTOS task entry point for the posture state machine.
- *        Blocks on IMU_DATA_READY_BIT event group bit.
- *        Evaluates thresholds, manages state transitions, enqueues audio commands.
- *        Pin to core 0 with stack TASK_STACK_FSM.
- */
-void task_posture_fsm(void *arg);
-```
-
-### 7.4 main.c — Responsibilities
-
-`app_main()` is the only entry point. It must do exactly these things in this order:
-
-1. `nvs_flash_init()` — with erase-on-error retry
-2. `mpu6050_init()` — halt with error tone if ESP_FAIL
-3. `audio_init()` — halt with error tone if ESP_FAIL
-4. Play boot-ready tone
-5. Run `calibrate_baseline()` — blocks until accepted
-6. Create `imu_mutex` — assert non-NULL
-7. Create `evt_group` — assert non-NULL
-8. Create `audio_queue` — assert non-NULL
-9. `xTaskCreatePinnedToCore()` × 3 — assert all return pdPASS
-10. Return from `app_main()` — FreeRTOS scheduler takes over
 
 ---
 
-## 8. FreeRTOS Task Design
+## 12. FreeRTOS Task Design
 
-### Shared State
+### Tasks — V2 adds one task vs V1
+
+| Task | Core | Priority | Stack | Purpose |
+|---|---|---|---|---|
+| task_read_imu | 0 | 5 | 4096 | IMU read + light sleep loop |
+| task_posture_fsm | 0 | 4 | 4096 | State machine — unchanged |
+| task_audio | 1 | 3 | 8192 | Audio + haptic dispatch |
+| task_buttons | 0 | 2 | 2048 | Button debounce + event post |
+| task_power | 0 | 1 | 2048 | Battery monitor every 60s |
+
+### Shared state additions vs V1
 
 ```c
-// Shared between Task A (writer) and Task B (reader)
-typedef struct {
-    float   pitch;          // filtered pitch in degrees
-    float   roll;           // filtered roll in degrees
-    int64_t timestamp_us;   // esp_timer_get_time() at time of read
-} imu_data_t;
-
-// Globals declared in main.c, extern'd where needed
-extern imu_data_t       g_imu_data;
-extern SemaphoreHandle_t g_imu_mutex;
+// V1 globals — unchanged
+extern imu_data_t         g_imu_data;
+extern SemaphoreHandle_t  g_imu_mutex;
 extern EventGroupHandle_t g_evt_group;
-extern QueueHandle_t     g_audio_queue;
+extern QueueHandle_t      g_audio_queue;
 
-// Event group bit definitions
-#define EVT_IMU_DATA_READY   (1 << 0)
-```
-
-### Task A — IMU Reader
-
-```
-Loop every IMU_SAMPLE_RATE_MS (100ms):
-  1. Call mpu6050_read_angles(&pitch, &roll)
-     → If ESP_FAIL: log warning, increment fail_count
-       If fail_count >= 3: log error, call esp_restart()
-  2. Take g_imu_mutex (timeout MUTEX_TIMEOUT_MS)
-     → If take fails: log warning, skip this sample, continue loop
-  3. Write pitch, roll, timestamp to g_imu_data
-  4. Give g_imu_mutex
-  5. xEventGroupSetBits(g_evt_group, EVT_IMU_DATA_READY)
-  6. vTaskDelay(pdMS_TO_TICKS(IMU_SAMPLE_RATE_MS))
-```
-
-### Task B — Posture FSM
-
-```
-Loop (blocking):
-  1. xEventGroupWaitBits(g_evt_group, EVT_IMU_DATA_READY, pdTRUE, pdFALSE, portMAX_DELAY)
-  2. Take g_imu_mutex (timeout MUTEX_TIMEOUT_MS)
-     → If take fails: log warning, continue loop (wait for next bit)
-  3. Copy g_imu_data to local imu_data_t snapshot
-  4. Give g_imu_mutex immediately
-  5. Compute delta = max(|pitch - baseline_pitch|, |roll - baseline_roll|)
-  6. If delta > JUMP_FILTER_DEG: discard sample, continue (violent movement)
-  7. Run state machine evaluation (see Section 9)
-  8. If state transition requires audio: xQueueSend(g_audio_queue, &cmd, 0)
-```
-
-### Task C — Audio Player
-
-```
-Loop (blocking):
-  1. xQueueReceive(g_audio_queue, &cmd, portMAX_DELAY)
-  2. Switch on cmd.type → call appropriate playback function
-  3. Return to step 1
+// V2 additions
+extern QueueHandle_t      g_button_queue;
+extern bool               g_snooze_active;   // set by button task, read by audio task
 ```
 
 ---
 
-## 9. Posture State Machine
+## 13. Posture State Machine
 
-### States
-```
-GOOD    → No deviation. Silent. Streak timer running.
-WARNING → Deviation beyond WARN_THRESH_DEG for WARN_GRACE_MS. Soft alert once.
-BAD     → Deviation beyond BAD_THRESH_DEG for BAD_GRACE_MS. Escalating alerts.
-RESET   → Transitional cooldown after recovering from BAD. 2s duration.
-```
+**No changes to state machine logic from V1.**
 
-### Transition Table
+The only change: `enqueue_audio()` calls in `posture_fsm.c` now send haptic commands
+alongside or instead of audio commands depending on alert level.
 
-| From | To | Condition |
+Updated command mapping:
+
+| Event | V1 command | V2 commands |
 |---|---|---|
-| GOOD | WARNING | `delta > WARN_THRESH_DEG` sustained for `WARN_GRACE_MS` |
-| WARNING | GOOD | `delta < WARN_THRESH_DEG` (immediate, no timer) |
-| WARNING | BAD | `delta > BAD_THRESH_DEG` sustained for `BAD_GRACE_MS` |
-| BAD | RESET | `delta < WARN_THRESH_DEG` (immediate) |
-| RESET | GOOD | `RESET_COOLDOWN_MS` elapsed since entering RESET |
-| RESET | WARNING | `delta > WARN_THRESH_DEG` before cooldown expires |
+| WARNING entry | AUDIO_CMD_WARN_BEEP | AUDIO_CMD_HAPTIC_WARN_SINGLE |
+| WARNING sustained | — | AUDIO_CMD_HAPTIC_WARN_DOUBLE |
+| BAD entry | AUDIO_CMD_BAD_ALERT | AUDIO_CMD_HAPTIC_BAD_STRONG + AUDIO_CMD_BAD_ALERT |
+| BAD escalation | AUDIO_CMD_BAD_ALERT | AUDIO_CMD_HAPTIC_ESCALATION + AUDIO_CMD_BAD_ALERT |
+| Voice loop | AUDIO_CMD_VOICE_CLIP | AUDIO_CMD_HAPTIC_ESCALATION + AUDIO_CMD_VOICE_CLIP |
+| Correction | AUDIO_CMD_CORRECTION_CONFIRM | AUDIO_CMD_HAPTIC_CORRECTION + AUDIO_CMD_CORRECTION_CONFIRM |
+| Reward | AUDIO_CMD_REWARD_CHIME | AUDIO_CMD_HAPTIC_CORRECTION (no audio — silent reward) |
 
-### State Machine Variables (internal to posture_fsm.c)
+---
+
+## 14. Configuration Reference
+
+All values in `config.h`. No magic numbers in `.c` files.
 
 ```c
-static posture_state_t  state            = STATE_GOOD;
-static float            baseline_pitch   = 0.0f;
-static float            baseline_roll    = 0.0f;
-static int64_t          warn_start_ms    = 0;
-static int64_t          bad_start_ms     = 0;
-static int64_t          reset_start_ms   = 0;
-static int64_t          good_streak_ms   = 0;
-static int64_t          last_alert_ms    = 0;
-static uint8_t          escalation_count = 0;
-static bool             warn_fired       = false;  // Alert fires only once per WARNING entry
-```
+// ── Haptic ────────────────────────────────────────────────────────────────
+#define DRV2605L_ADDR           0x5A
+#define HAPTIC_WARN_SINGLE      1       // DRV2605L waveform index
+#define HAPTIC_WARN_DOUBLE      10
+#define HAPTIC_BAD_STRONG       14
+#define HAPTIC_ESCALATION       47
+#define HAPTIC_CORRECTION       56
+#define HAPTIC_CAL_PROMPT       52
+#define HAPTIC_CAL_SUCCESS      58
+#define HAPTIC_CAL_FAIL         38
 
-### Audio per state transition
+// ── Power ─────────────────────────────────────────────────────────────────
+#define VBAT_SENSE_GPIO         34
+#define VBAT_DIVIDER_RATIO      2.0f    // Two equal resistors: actual = adc * ratio
+#define LOW_BATTERY_WARN_V      3.5f    // Play warning beep below this
+#define LOW_BATTERY_CUTOFF_V    3.3f    // Enter deep sleep below this
+#define BATTERY_CHECK_INTERVAL_MS 60000 // Check every 60s
 
-| Transition / Event | Audio Command |
-|---|---|
-| GOOD → WARNING (first time) | `AUDIO_CMD_WARN_BEEP` |
-| WARNING → BAD (entry) | `AUDIO_CMD_BAD_ALERT` |
-| BAD, 30s elapsed, no correction | `AUDIO_CMD_BAD_ALERT` (repeat) |
-| BAD, 60s elapsed, escalation_count < CAP | `AUDIO_CMD_VOICE_CLIP` |
-| BAD → RESET | `AUDIO_CMD_CORRECTION_CONFIRM` |
-| GOOD streak hits GOOD_STREAK_REWARD_MS | `AUDIO_CMD_REWARD_CHIME` |
+// ── Buttons ───────────────────────────────────────────────────────────────
+#define BTN_CAL_GPIO            0
+#define BTN_SNOOZE_GPIO         35
+#define BTN_DEBOUNCE_MS         50      // Ignore transitions < 50ms
+#define BTN_LONG_PRESS_MS       2000    // Long press threshold
 
----
+// ── Snooze ────────────────────────────────────────────────────────────────
+#define SNOOZE_DURATION_MS      600000  // 10 minutes
 
-## 10. Audio System
+// ── Audio (SD_MODE) ───────────────────────────────────────────────────────
+#define AUDIO_SD_MODE_GPIO      48
 
-### Tone definitions (defined as const arrays in audio.c)
-
-```c
-// Boot ready: single medium tone
-static const tone_t TONE_BOOT[]     = {{ 500, 200, VOL_BOOT, 0 }};
-
-// Calibration prompt: ascending 3-note — "sit up straight now"
-static const tone_t TONE_CAL_PROMPT[] = {
-    { 400, 150, VOL_CHIME, 50 },
-    { 600, 150, VOL_CHIME, 50 },
-    { 800, 150, VOL_CHIME, 0  },
-};
-
-// Calibration success: C5 → E5 → G5 arpeggio
-static const tone_t TONE_CAL_OK[] = {
-    { 523, 100, VOL_CHIME, 30 },
-    { 659, 100, VOL_CHIME, 30 },
-    { 784, 150, VOL_CHIME, 0  },
-};
-
-// Calibration fail: descending 2-note
-static const tone_t TONE_CAL_FAIL[] = {
-    { 600, 150, VOL_CHIME, 50 },
-    { 400, 200, VOL_CHIME, 0  },
-};
-
-// Warning beep: single soft beep
-static const tone_t TONE_WARN[]    = {{ 700, 120, VOL_WARNING, 0 }};
-
-// Bad alert: double sharp beep
-static const tone_t TONE_BAD[]     = {
-    { 1000, 200, VOL_BAD, 100 },
-    { 1000, 200, VOL_BAD, 0   },
-};
-
-// Correction confirm: descending 2-note — "well done"
-static const tone_t TONE_CONFIRM[] = {
-    { 600, 100, VOL_CHIME, 40 },
-    { 400, 120, VOL_CHIME, 0  },
-};
-
-// Good streak reward: G5 → E5 → C5 descending chime
-static const tone_t TONE_REWARD[]  = {
-    { 784, 100, VOL_CHIME, 30 },
-    { 659, 100, VOL_CHIME, 30 },
-    { 523, 150, VOL_CHIME, 0  },
-};
-```
-
-### Sine wave generation algorithm
-
-```c
-void audio_play_tone(uint16_t freq_hz, uint16_t dur_ms, float volume) {
-    int total_samples = (I2S_SAMPLE_RATE_HZ * dur_ms) / 1000;
-    int fade_samples  = (I2S_SAMPLE_RATE_HZ * TONE_FADE_MS) / 1000;
-    int16_t buf[I2S_DMA_BUF_LEN_SMPLS];
-    size_t written;
-
-    for (int i = 0; i < total_samples; i += I2S_DMA_BUF_LEN_SMPLS) {
-        int chunk = MIN(I2S_DMA_BUF_LEN_SMPLS, total_samples - i);
-        for (int j = 0; j < chunk; j++) {
-            int idx = i + j;
-            float t = (float)idx / I2S_SAMPLE_RATE_HZ;
-
-            // Envelope: fade in and fade out
-            float env = 1.0f;
-            if (idx < fade_samples)
-                env = (float)idx / fade_samples;
-            else if (idx > total_samples - fade_samples)
-                env = (float)(total_samples - idx) / fade_samples;
-
-            buf[j] = (int16_t)(sinf(2.0f * M_PI * freq_hz * t) * 32767.0f * volume * env);
-        }
-        i2s_write(I2S_PORT_NUM, buf, chunk * sizeof(int16_t), &written, pdMS_TO_TICKS(200));
-    }
-}
-```
-
-### WAV file embedding
-
-```
-Prepare the voice clip:
-  sox input.wav -r 16000 -c 1 -b 16 src/main/voice/sit_up.wav
-
-Access in code (ESP-IDF embeds it as a flash symbol):
-  extern const uint8_t sit_up_wav_start[] asm("_binary_sit_up_wav_start");
-  extern const uint8_t sit_up_wav_end[]   asm("_binary_sit_up_wav_end");
-
-Play it:
-  uint32_t len = sit_up_wav_end - sit_up_wav_start;
-  audio_play_wav(sit_up_wav_start, len);
-
-audio_play_wav skips the 44-byte WAV header:
-  const uint8_t *pcm = data + 44;
-  uint32_t pcm_len   = len - 44;
-  i2s_write(I2S_PORT_NUM, pcm, pcm_len, &written, pdMS_TO_TICKS(5000));
+// ── All V1 values preserved unchanged ────────────────────────────────────
+#define WARN_THRESH_DEG         10.0f
+#define BAD_THRESH_DEG          20.0f
+#define JUMP_FILTER_DEG         60.0f
+#define WARN_GRACE_MS           3000
+#define BAD_GRACE_MS            5000
+#define RESET_COOLDOWN_MS       2000
+#define REPEAT_ALERT_MS         8000
+#define ESCALATION_CAP          3
+#define GOOD_STREAK_REWARD_MS   30000
+#define LPF_ALPHA               0.15f
+#define IMU_SAMPLE_RATE_MS      100
 ```
 
 ---
 
-## 11. Calibration System
+## 15. PCB Design Guidelines
 
-Calibration lives as a standalone function `calibrate_baseline()` in `main.c`. It is not a task — it runs synchronously during boot before any tasks are created.
+### Board specifications
+- **Dimensions:** 45×35mm target, 50×38mm maximum
+- **Layers:** 2 (top copper + bottom copper)
+- **Thickness:** 1.6mm standard
+- **Min trace width:** 0.15mm (signal), 0.5mm (power), 1.0mm (battery/speaker)
+- **Min clearance:** 0.15mm
+- **Surface finish:** HASL or ENIG (ENIG preferred for fine-pitch QFN pads)
+- **Solder mask:** Both sides, green
+- **Manufacturer:** JLCPCB (5 units for prototyping, 50 units for first batch)
 
-### Algorithm
+### Component placement rules
 
 ```
-1. mpu6050_reset_filter()                     // Flush EMA state
-2. audio_play_sequence(TONE_CAL_PROMPT, 3)    // "Sit straight"
-3. vTaskDelay(pdMS_TO_TICKS(500))             // Brief pause after prompt
+TOP SIDE:
+  ESP32-S3-MINI-1U  — center-top, antenna edge must overhang PCB edge
+                       or keep 3mm copper-free keep-out under antenna
+  MPU-6050          — close to center, away from switching noise sources
+  DRV2605L          — near I2C bus, away from speaker lines
+  MAX98357A         — near speaker connector, short differential traces
+  MCP73831          — near USB-C connector
+  AP2112K           — near MCP73831 output, bulk cap close to output pin
+  All bypass caps   — within 1mm of each IC's VCC pin, on same side
 
-4. Collect CAL_TOTAL_SAMPLES samples:
-   for i = 0 to CAL_TOTAL_SAMPLES - 1:
-     mpu6050_read_angles(&p, &r)
-     if i >= CAL_DISCARD_SAMPLES:
-       accumulate pitch_sum, roll_sum
-       accumulate pitch_sq_sum, roll_sq_sum  // for stddev
-     vTaskDelay(pdMS_TO_TICKS(IMU_SAMPLE_RATE_MS))
+BOTTOM SIDE:
+  LRA motor         — adhesive-mounted, pads on bottom for LRA connections
+  Battery connector — edge of board, opposite USB-C
+  No ICs on bottom  — keeps reflow simple, one-sided assembly
 
-5. Compute mean:
-   pitch_mean = pitch_sum / CAL_VALID_SAMPLES
-   roll_mean  = roll_sum  / CAL_VALID_SAMPLES
-
-6. Compute stddev:
-   pitch_stddev = sqrtf(pitch_sq_sum/CAL_VALID_SAMPLES - pitch_mean^2)
-   roll_stddev  = sqrtf(roll_sq_sum/CAL_VALID_SAMPLES  - roll_mean^2)
-   max_stddev   = max(pitch_stddev, roll_stddev)
-
-7. Validate:
-   if max_stddev > CAL_MAX_STDDEV_DEG:
-     audio_play_sequence(TONE_CAL_FAIL, 2)
-     goto step 1                              // Retry — no limit in MVP
-
-8. Accept:
-   posture_fsm_set_baseline(pitch_mean, roll_mean)
-   audio_play_sequence(TONE_CAL_OK, 3)
-   ESP_LOGI(TAG, "Calibration OK: pitch=%.2f roll=%.2f stddev=%.2f",
-            pitch_mean, roll_mean, max_stddev)
+ROUTING PRIORITIES:
+  1. I2S lines (BCLK, WS, DOUT) — short, parallel, same layer
+  2. I2C lines (SDA, SCL)       — short, away from I2S
+  3. Speaker differential pair  — keep together, away from signal lines
+  4. USB D+/D-                  — matched length, 90Ω differential impedance
+  5. Power traces               — wide, direct from LDO to each IC
 ```
 
+### Antenna keep-out (critical)
+ESP32-S3-MINI-1U has an onboard PCB antenna on the edge of the module.
+No copper, no traces, no ground plane within 3mm below the antenna area.
+Violating this will degrade WiFi/BLE range significantly.
+
 ---
 
-## 12. Error Handling Rules
+## 16. Enclosure & Form Factor
 
-| Condition | Response |
-|---|---|
-| `mpu6050_init()` returns `ESP_FAIL` | Log `FATAL`. Play 3 descending error tones. Call `abort()`. |
-| `audio_init()` returns `ESP_FAIL` | Log `FATAL`. Cannot play tone. Call `abort()`. |
-| `nvs_flash_init()` fails | `nvs_flash_erase()` then retry. If still fails, continue without NVS (log warning). |
-| WHO_AM_I mismatch at boot | Log `FATAL: MPU-6050 not found (got 0xXX)`. Call `abort()`. |
-| I2C read returns non-`ESP_OK` | Skip sample. Increment `consecutive_fail`. If >= 3, call `esp_restart()`. |
-| Calibration stddev too high | Play fail tone. Automatically restart calibration. No limit on retries. |
-| Mutex take timeout | Log `WARN`. Skip this sample/evaluation cycle. Do NOT block. |
-| Audio queue full | Log `DEBUG: audio queue full, command dropped`. Continue. |
-| Any `xTaskCreatePinnedToCore` returns `pdFAIL` | Log `FATAL`. Call `abort()`. |
-| Any `xSemaphoreCreateMutex` returns `NULL` | Log `FATAL`. Call `abort()`. |
-
-**Logging TAG convention:**
-```c
-// Each .c file defines its own TAG at the top
-static const char *TAG = "POSTURE_FSM";   // or "MPU6050", "AUDIO", "MAIN"
+### Target dimensions
+```
+PCB:      45×35×1.6mm
+LiPo:     35×25×5mm  (behind PCB)
+Assembly: 45×35×8mm  (PCB + battery sandwiched)
+Clip:     45×38×16mm (adds 8mm for clip mechanism)
 ```
 
----
+### Clip design
+3D printed in PETG (flexible enough to clip, rigid enough to hold):
+- Spring clip mechanism — clips onto shirt collar, bra strap, or epaulette
+- PCB slides into a recessed pocket in the clip body
+- Speaker grille on top face (sound exits upward toward ear)
+- USB-C port accessible from bottom edge
+- Buttons exposed on front face
+- LRA motor contacts back face (against body for best haptic transmission)
 
-## 13. Development Phases
-
-Each phase has a strict entry condition (what must be true before starting) and a pass criterion (what must be demonstrated before moving to the next phase). **No skipping phases.**
-
----
-
-### Phase 0 — Toolchain & Project Scaffold ✅ COMPLETE
-**Goal:** Verify toolchain, scaffold all project files, confirm build and flash work on real hardware.
-
-**Status:** Complete. See PHASES.md for full details, discovered issues, and fixes.
-
-**What was built:**
-- `platformio.ini`, root `CMakeLists.txt`, `sdkconfig.defaults`
-- `src/main/CMakeLists.txt`, `config.h`, stub `main.c`, `mpu6050.c/.h`, `audio.c/.h`, `posture_fsm.c/.h`
-- Placeholder `voice/sit_up.wav`
-
-**Key fixes required:**
-- `board_build.flash_size = 4MB` in `platformio.ini`
-- `CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y` in `sdkconfig.defaults`
-- `CONFIG_PARTITION_TABLE_OFFSET=0x9000` in `sdkconfig.defaults` — ESP-IDF 5.5 bootloader overruns the default `0x8000` offset
-
-**Pass criterion met:**
-- Build: zero errors, zero warnings
-- Flash: succeeds, no overlap errors
-- Serial: `I (672) MAIN: Posture Tracker — Phase 0 scaffold build OK`
+### Mounting orientation
+Sensor axis map is unchanged from V1. Same pitch/roll interpretation.
+Calibration handles any mounting offset, including the ~45° shoulder angle.
 
 ---
 
-### Phase 1 — I2C + Raw IMU Data
-**Goal:** Confirm hardware is wired correctly and sensor is responding.
+## 17. Development Phases
 
-**Entry condition:** Hardware wired per Section 2. PlatformIO project compiles.
+### Phase 7 — Haptic Validation on Breadboard
+**Goal:** Prove DRV2605L + LRA waveforms feel right before committing to PCB.
+
+**Hardware needed:**
+- Adafruit DRV2605L breakout (~$7.95)
+- 10mm LRA motor (~$3 from Digikey/Mouser)
+- Connect breakout to existing V1 breadboard on I2C bus
 
 **What to build:**
-- `mpu6050_init()` with I2C init, PWR_MGMT_1 wake, WHO_AM_I check
-- `mpu6050_read_angles()` — raw bytes only, no math yet, print raw int16 values
-- `app_main()` calls init and loops printing values to serial
+- `haptic.c` driver
+- Add AUDIO_CMD_HAPTIC_* to audio task
+- Remap WARNING alerts to haptic, BAD to haptic + audio
+- Verify all 8 waveform indices feel distinct and appropriate
 
-**Pass criterion:**
-- Serial monitor shows `WHO_AM_I: 0x68` at boot
-- `ax`, `ay`, `az` raw int16 values print continuously
-- Values visibly change when sensor is tilted by hand
-- No I2C errors in 60 seconds of running
+**Pass criteria:**
+- Single tap on WARNING — clearly felt, not startling
+- Double tap on WARNING sustained — distinct from single
+- Strong double on BAD entry — noticeably stronger
+- Correction reward — smooth, satisfying, clearly positive
+- All waveforms distinct from each other by feel alone
 
 ---
 
-### Phase 2 — Angle Computation + Low-Pass Filter
-**Goal:** Convert raw sensor data to usable pitch and roll angles.
+### Phase 8 — Speaker Swap Validation
+**Goal:** Confirm 20mm speaker provides adequate volume for voice clips.
 
-**Entry condition:** Phase 1 passed.
+**Hardware needed:** 20mm 8Ω 0.5W speaker, wire to existing MAX98357A
+
+**Pass criteria:**
+- "Sit up straight" audible at 1 metre in a quiet room
+- "Thank you good work" audible and intelligible
+- Boot tone audible
+- No distortion at max volume
+
+---
+
+### Phase 9 — Battery System Validation
+**Goal:** Validate MCP73831 + AP2112K + LiPo circuit on a test PCB.
 
 **What to build:**
-- Full `mpu6050_read_angles()` with atan2 math and EMA filter
-- Print `pitch` and `roll` in degrees to serial
+- Small test PCB or use evaluation board
+- Confirm charging current is correct
+- Confirm LDO output is stable 3.3V across LiPo discharge range
+- Confirm low-battery detection thresholds trigger correctly
 
-**Pass criterion:**
-- Pitch changes by >10° when sensor is deliberately tilted forward
-- Roll changes by >10° when sensor is tilted sideways
-- Values stabilise within ~1 second of the sensor being held still
-- Values are stable (< ±1° fluctuation) on a flat, still surface
-
----
-
-### Phase 3 — I2S + Speaker Output
-**Goal:** Confirm audio hardware works end-to-end.
-
-**Entry condition:** Phase 2 passed. MAX98357A wired per Section 2.
-
-**What to build:**
-- `audio_init()` with I2S driver install and pin config
-- `audio_play_tone()` with sine generation and fade envelope
-- `app_main()` plays a 1000Hz test tone for 500ms on startup, then enters IMU loop
-
-**Pass criterion:**
-- Audible tone from speaker at boot — clean, no distortion, no pop
-- No I2S error codes in serial log
-- IMU angle printing continues normally after tone finishes
+**Pass criteria:**
+- LiPo charges at 100mA from USB-C
+- STAT LED indicates charging / done correctly
+- 3.3V stable from 4.2V to 3.4V LiPo input
+- Low battery warning fires at correct voltage
+- Deep sleep entry fires at cutoff voltage
 
 ---
 
-### Phase 4 — Calibration
-**Goal:** Validate the full calibration flow works reliably.
+### Phase 10 — PCB V2 Design & Fabrication
+**Goal:** First assembled custom PCB.
 
-**Entry condition:** Phase 3 passed.
+**Steps:**
+1. Schematic capture (KiCad or EasyEDA)
+2. PCB layout per Section 15 guidelines
+3. DRC — zero errors
+4. Gerber export + BOM + CPL for JLCPCB
+5. Order 5 prototype units
+6. Assemble, flash, verify all Phase 7–9 functionality
 
-**What to build:**
-- `audio_play_sequence()` for multi-tone sequences
-- `calibrate_baseline()` in `main.c`
-- `posture_fsm_set_baseline()` in `posture_fsm.c`
-
-**Pass criterion:**
-- Calibration prompt tones play at boot
-- Holding sensor still → success chime → baseline values logged to serial
-- Moving sensor during calibration → failure tone → retry automatically
-- Logged baseline pitch and roll match the known orientation of the device
-
----
-
-### Phase 5 — State Machine + Audio Queue + Full Integration
-**Goal:** Full working posture tracker.
-
-**Entry condition:** Phase 4 passed.
-
-**What to build:**
-- FreeRTOS task infrastructure (mutex, event group, queue)
-- `task_read_imu()`, `task_posture_fsm()`, `task_audio()` full implementations
-- Full state machine in `posture_fsm.c`
-- Voice WAV embedded and playing
-
-**Pass criterion:**
-- Deliberately holding device at >10° from baseline for 3s → warning beep
-- Deliberately holding at >20° for 5s → double alert beep
-- Returning to baseline → correction confirm tone
-- Correct state logged to serial throughout
-- No spurious alerts from desk vibration or typing simulation
+**Pass criteria:**
+- All ICs detected on I2C bus
+- I2S audio plays
+- Haptics fire
+- USB-C charges battery
+- Buttons respond
+- Size fits within clip dimensions
 
 ---
 
-### Phase 6 — Endurance Test ✅ COMPLETE
-**Goal:** Confirm stability for real-world sessions.
+### Phase 11 — Full Integration & Enclosure
+**Goal:** Complete wearable device, worn for a real work session.
 
-**Entry condition:** Phase 5 passed.
-
-**What to build:** No new code. Testing only.
-
-**Test procedure:**
-- Run device continuously for 60+ minutes
-- Alternate between good posture (5-10 min blocks) and deliberate bad posture (1-2 min)
-- Monitor serial output throughout
-
-**Pass criterion:**
-- No crashes, no resets, no stuck states
-- No false positive alerts during normal desk activity
-- All expected audio fires at correct times
-- Serial log shows clean state transitions throughout
+**Pass criteria:**
+- Worn for 4+ hours continuously
+- Alerts feel appropriate in context (haptic in meeting, audio at desk)
+- Battery lasts full session
+- No crashes, no false positives
+- Clip stays attached to clothing
 
 ---
 
-## 14. Coding Conventions
+## 18. Branch Strategy
 
-### General
-- **Language:** C99/C11 only. No C++. No `.cpp` files.
-- **Naming:** `snake_case` for all identifiers. No camelCase.
-- **Constants:** `UPPER_SNAKE_CASE` via `#define` in `config.h`.
-- **Types:** Use `uint8_t`, `int16_t`, `float`, `bool` from `<stdint.h>` and `<stdbool.h>`.
-- **No magic numbers:** If a number isn't 0 or 1, it belongs in `config.h`.
-
-### File structure
-Every `.c` file must start with:
-```c
-#include "config.h"
-#include <stdio.h>
-#include <string.h>
-#include <math.h>              // only if needed
-#include "freertos/FreeRTOS.h" // only if needed
-#include "esp_log.h"
-#include "own_header.h"
-
-static const char *TAG = "MODULE_NAME";
+```
+main                        ← V1 MVP (phases 0-6, public, breadboard)
+  └── release/v2-product    ← V2 base (this branch, all V2 work starts here)
+        └── feature/haptics         (Phase 7 — haptic driver)
+        └── feature/speaker-swap    (Phase 8 — speaker validation)
+        └── feature/power-system    (Phase 9 — battery/charging)
+        └── feature/pcb-v2          (Phase 10 — PCB design files)
+        └── feature/enclosure       (Phase 11 — CAD files)
 ```
 
-### Logging
-```c
-ESP_LOGI(TAG, "Descriptive message: val=%.2f", val);   // Normal info
-ESP_LOGW(TAG, "Warning: something unexpected");         // Recoverable issue
-ESP_LOGE(TAG, "Error: cannot continue");                // Serious error
-ESP_LOGD(TAG, "Debug: raw=%d", raw);                    // Verbose debug (compiled out in release)
-```
-
-### Comments
-- Every function with >10 lines gets a block comment above it
-- Every `#define` in `config.h` gets a comment explaining units and effect of changing it
-- No commented-out code committed to the repo — delete it
-
-### Error checking
-```c
-// ALWAYS check return values from ESP-IDF functions
-esp_err_t ret = mpu6050_init();
-if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "MPU-6050 init failed: %s", esp_err_to_name(ret));
-    // handle error — do not silently continue
-}
-```
+**Merge policy:**
+- Feature branches merge into `release/v2-product` via PR, not directly to `main`
+- `release/v2-product` → `main` only at a deliberate product release milestone
+- All feature branches: descriptive commit messages, no `WIP` commits on PRs
 
 ---
 
-## 15. Build & Flash Commands
+## 19. Coding Conventions
+
+All V1 conventions apply unchanged:
+- C99/C11 only, no C++
+- `snake_case` identifiers, `UPPER_SNAKE_CASE` constants
+- No magic numbers — all values in `config.h`
+- Error check all ESP-IDF return values
+- Each `.c` file: `static const char *TAG = "MODULE_NAME";`
+
+**Additional V2 conventions:**
+- Haptic waveform indices must be `#define` in `config.h` with comment citing DRV2605L datasheet table row
+- Battery voltages in constants with `_V` suffix (e.g. `LOW_BATTERY_WARN_V`)
+- Button GPIO constants with `_GPIO` suffix
+- Any stub for future BLE feature: comment `// BLE_STUB — implement in V3`
+
+---
+
+## 20. Build & Flash Commands
 
 ```bash
-# Build only
+# Build
 pio run
 
-# Build and flash
+# Flash via USB-C native USB (ESP32-S3)
+# Hold BOOT (SW1), press RESET, release BOOT, then:
 pio run --target upload
 
-# Build, flash, and open serial monitor
-pio run --target upload && pio device monitor
-
-# Open serial monitor only (device already flashed)
+# Serial monitor
 pio device monitor --baud 115200
 
-# Clean build (when changing sdkconfig or CMakeLists)
-pio run --target clean
-pio run
-
-# Open ESP-IDF menuconfig (for sdkconfig changes)
-pio run --target menuconfig
-
-# Erase entire flash (use when flash state is suspect)
-pio run --target erase
-
-# Check available serial ports
-pio device list
+# Clean rebuild
+pio run --target clean && pio run
 ```
+
+**ESP32-S3 note:** Native USB DFU flashing may require first run to manually enter
+bootloader mode. Subsequent flashes can use auto-reset if RTS/DTR are wired
+(they are via USB OTG on ESP32-S3, handled automatically by esptool).
 
 ---
 
-## 16. Debugging & Serial Monitor
+## 21. Known Constraints & Hard Rules
 
-### Serial output conventions
-All serial output goes through ESP-IDF's `ESP_LOG*` macros. Do not use `printf()` directly except in `app_main()` before log system is configured.
+All V1 rules apply. Additional V2 rules:
 
-### Useful debug patterns
+1. **DRV2605L waveform indices are 1-indexed.** Index 0 = stop. Never send 0 as a
+   waveform ID — it silently stops playback with no error.
 
-**Print angles continuously (Phase 2 only — remove in Phase 5):**
-```c
-ESP_LOGI(TAG, "pitch=%.2f roll=%.2f", pitch, roll);
-```
+2. **LRA motor connects to DRV2605L only.** Never connect LRA directly to a GPIO.
+   The motor requires AC drive at its resonant frequency — GPIO square wave will
+   damage the motor and produce no useful vibration.
 
-**Print state transitions:**
-```c
-ESP_LOGI(TAG, "STATE: %s -> %s | delta=%.2f",
-         state_name(old_state), state_name(new_state), delta);
-```
+3. **Battery connector must be keyed.** JST-PH with key. MCP73831 has no reverse-
+   polarity protection. Reversed battery = immediate IC destruction.
 
-**Monitor stack usage (add during Phase 6 testing):**
-```c
-ESP_LOGI(TAG, "Stack watermark IMU=%d FSM=%d AUDIO=%d",
-         uxTaskGetStackHighWaterMark(task_imu_handle),
-         uxTaskGetStackHighWaterMark(task_fsm_handle),
-         uxTaskGetStackHighWaterMark(task_audio_handle));
-```
+4. **USB-C CC pins are mandatory.** Both CC1 and CC2 need 5.1kΩ to GND. Without
+   them, USB-C chargers will not supply current. This is non-negotiable.
 
-**Expected boot sequence in serial monitor:**
-```
-I (312)  MAIN:  NVS initialised
-I (418)  MPU6050: WHO_AM_I: 0x68 — device confirmed
-I (420)  MPU6050: Registers configured
-I (421)  AUDIO:  I2S driver installed
-I (422)  MAIN:  Starting calibration...
-I (3842) MAIN:  Calibration OK: pitch=-2.14 roll=0.87 stddev=0.43
-I (3843) MAIN:  All tasks launched. Entering monitoring loop.
-I (3845) FSM:   STATE: GOOD (baseline locked)
-```
+5. **ESP32-S3 antenna keep-out is mandatory.** No copper under the antenna area.
+   Violating this is not caught by DRC — it must be checked manually.
+
+6. **haptic_play() is non-blocking.** Do not add delays after calling it expecting
+   the waveform to finish. If sequencing matters, use the DRV2605L waveform
+   sequence registers (slots 0–7) to chain patterns, not application-level delays.
+
+7. **Speaker impedance must be 8Ω.** MAX98357A configured for 8Ω in V2. Using 4Ω
+   will overdrive the amplifier and cause thermal shutdown.
+
+8. **g_snooze_active is read by audio task, written by button task.** Access must
+   be atomic. Use `atomic_bool` or a FreeRTOS mutex — not a raw `bool`.
 
 ---
 
-## 17. Known Constraints & Rules
-
-These are hard rules. Claude must not suggest violating them under any circumstances.
-
-1. **No Arduino framework.** The project uses ESP-IDF via PlatformIO. `#include "Arduino.h"` is banned.
-2. **No third-party libraries** for I2C, I2S, audio, or math. Only ESP-IDF built-ins and C standard library (`<math.h>`).
-3. **No C++.** All source files are `.c`. No `new`, no classes, no templates.
-4. **No magic numbers in `.c` files.** All tunable values live in `config.h`.
-5. **No WiFi, no BLE.** The wireless stacks are disabled in sdkconfig to save RAM.
-6. **No global variables accessed from multiple tasks without mutex protection.** `g_imu_data` is the only shared struct and is always accessed under `g_imu_mutex`.
-7. **No blocking calls in the FSM task that are not the event group wait.** The FSM must never call `vTaskDelay()`.
-8. **The audio task never reads IMU data directly.** It only receives `audio_cmd_t` structs from the queue.
-9. **Cross-layer calls are banned.** `mpu6050.c` must not call FreeRTOS primitives. `posture_fsm.c` must not call I2C or I2S functions.
-10. **`config.h` has no `.c` pair.** It is a pure header of `#define` constants. No `extern`, no function declarations.
-
----
-
-*Last updated: 2026-04-25 — Phase 0 complete.*
-*Next step: Begin Phase 1 — I2C + raw IMU data (real mpu6050_init + read_raw).*
+*Branch: release/v2-product*
+*Created: 2026-04-26*
+*V1 breadboard reference: [main branch](../../tree/main)*
