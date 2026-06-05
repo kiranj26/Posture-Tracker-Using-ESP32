@@ -9733,7 +9733,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "Conn_01x02"
+		(property "Value" "Molex_PicoBlade_53047-0210"
 			(at 261.62 111.7599 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9744,7 +9744,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_GH_BM02B-GHS-TBT_1x02-1MP_P1.25mm_Vertical"
+		(property "Footprint" "Connector_Molex:Molex_PicoBlade_53047-0210_1x02-1MP_P1.25mm_Vertical"
 			(at 259.08 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -14174,7 +14174,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "bed065ac-8e62-4c70-bd15-7aca309844a6")
-		(property "Reference" "J3"
+		(property "Reference" "M1"
 			(at 166.37 104.1399 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14185,7 +14185,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "Conn_01x02"
+		(property "Value" "Molex_PicoBlade_53047-0210"
 			(at 166.37 106.6799 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14196,7 +14196,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+		(property "Footprint" "Connector_Molex:Molex_PicoBlade_53047-0210_1x02-1MP_P1.25mm_Vertical"
 			(at 163.83 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -14238,7 +14238,7 @@
 		(instances
 			(project "posture_tracker_v2"
 				(path "/ed2b0582-7f4b-4ec5-a143-e23922c2754c"
-					(reference "J3")
+					(reference "M1")
 					(unit 1)
 				)
 			)
