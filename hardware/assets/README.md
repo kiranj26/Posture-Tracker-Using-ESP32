@@ -25,6 +25,6 @@ Screenshots and renders for use in README files.
 
 | File | Status | Used in |
 |---|---|---|
-| `pcb_v2_3d.png` | ⏳ Pending capture | `README_V2.md` |
-| `pcb_v2_top.png` | ⏳ Pending capture | `README_V2.md` |
-| `schematic_v2.png` | ⏳ Pending capture | `README_V2.md` |
+| `pcb_v2_3d.png` | ⏳ Pending capture | `README.md` |
+| `pcb_v2_top.png` | ⏳ Pending capture | `README.md` |
+| `schematic_v2.png` | ⏳ Pending capture | `README.md` |

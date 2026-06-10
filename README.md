@@ -158,7 +158,7 @@ USB-C and buttons accessible on edges.
 | 7 | Haptic validation on breadboard (DRV2605L + LRA) | ⏳ Next | 📦 Parts ordered |
 | 8 | Speaker swap validation (20mm 8Ω 1W) | ⏳ Next | 📦 Parts ordered |
 | 9 | Battery system validation (MCP73831 + LiPo) | ⏳ Pending | 📦 Parts ordered |
-| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 Routing in progress | Schematic ✅ ERC clean. Components placed ✅. DRC clean (2 acceptable silk warnings). Routing WIP — power rails next. See `feature/pcb-schematic` |
+| 10 | PCB V2 schematic + layout + fabrication (JLCPCB) | 🔄 PCB complete — awaiting order | Schematic ✅ ERC clean. Layout ✅ fully routed. DRC ✅ 0 errors, 0 unconnected, 2 cosmetic silk warnings. Gerbers ✅ `hardware/pcb/v2/`. JLCPCB order ⏳ pending. |
 | 11 | Full integration + enclosure (3D printed clip) | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
@@ -177,47 +177,64 @@ main                        ← V1 MVP (public, breadboard, complete)
 
 ---
 
-## PCB Layout — Current State (WIP)
-
-> Branch: `feature/pcb-schematic`
+## PCB Layout — Complete
 
 ### Design decisions locked
-- **2-layer board** — F.Cu for all signal and power traces, B.Cu reserved exclusively for GND copper pour (filled last)
-- **Net classes** — Power nets (+3V3, /VBAT, /VBUS, /VBUS_FUSED): 0.5mm trace / 0.8mm via / 0.4mm drill. Signal: 0.2mm / 0.6mm / 0.3mm
-- **Board size** — 45.5 × 27mm (fits 45×35×16mm wearable form factor with battery)
-- **Connectors** — J1: USB-C (HRO TYPE-C-31-M-12), J2: JST PH 2mm (battery), J3: JST GH 1.25mm (LRA haptic), LS1: JST GH 1.25mm (speaker)
-- **Speaker** — MECCANIXITY 20mm 8Ω 1W with pre-soldered 1.25mm cable → plugs into LS1 on PCB
-- **LRA motor** — Vybronics VG1030001XH → 1.25mm cable → plugs into J3 on PCB
+- **2-layer board** — F.Cu for all signal and power traces, B.Cu solid GND copper pour
+- **Trace widths (IPC-2221 verified, 1oz copper, 10°C rise)** — VBUS/VBUS_FUSED: 0.4mm, +3V3/VBAT/audio/motor: 0.3mm, all signals: 0.2mm
+- **Net classes** — HighCurrent (0.4mm), Power (0.3mm), Audio (0.3mm), Motor (0.3mm), USB_Diff (0.2mm impedance-controlled), Default (0.2mm)
+- **Via spec** — 0.8mm outer / 0.4mm drill (JLCPCB standard rule compliant)
+- **Board size** — ~47.6 × 28.3mm (fits 45×35×16mm wearable form factor with battery)
+- **Connectors** — J1: USB-C (HRO TYPE-C-31-M-12), J2: JST PH 2mm (battery), J3: Molex PicoBlade 53261-0271 (LRA haptic), LS1: Molex PicoBlade 53261-0271 (speaker)
 
 ### Routing status
 | Net group | Connections | Status |
 |---|---|---|
-| GND | ~72 | ⏳ Handled by B.Cu copper pour at end |
-| +3V3 | 23 | ⏳ Next to route |
-| VBAT | 7 | ⏳ Pending |
-| VBUS / VBUS_FUSED | 4 | ⏳ Pending |
-| I2C (SDA/SCL) | 6 | ⏳ Pending |
-| USB_DP / USB_DM | 8 | ⏳ Pending |
-| I2S (BCLK/WS/DOUT) | 3 | ⏳ Pending |
-| Signals + buttons | ~31 | ⏳ Pending |
+| GND | ~72 | ✅ B.Cu + F.Cu copper pour, stitching vias placed |
+| +3V3 | 23 | ✅ Routed |
+| VBAT | 7 | ✅ Routed |
+| VBUS / VBUS_FUSED | 4 | ✅ Routed |
+| I2C (SDA/SCL) | 6 | ✅ Routed |
+| USB_DP / USB_DM | 8 | ✅ Routed |
+| I2S (BCLK/WS/DOUT) | 3 | ✅ Routed |
+| Signals + buttons | ~31 | ✅ Routed |
 
-**DRC baseline:** 154 unconnected, 2 silk warnings (U1 antenna overhang — expected), 0 copper errors.
+**Final DRC (2026-06-09):** 0 errors, 0 unconnected, 2 cosmetic silk warnings (U1 silkscreen clips board edge — JLCPCB trims automatically).
 
 ### File locations
 ```
 hardware/
 ├── kicad/posture_tracker_v2/
 │   └── posture_tracker_v2/    ← KiCad source (schematic + PCB + project files)
-├── schematics/                ← Exported schematic PDF + design guide
-├── pcb/                       ← PCB layout PDF exports + Gerbers (after routing)
+│       └── reports/           ← DRC.rpt, ERC.rpt
+├── schematics/                ← Exported schematic PDF (posture_tracker_v2_v2.pdf)
+├── pcb/
+│   └── v2/
+│       ├── gerbers/           ← 12 Gerber + drill files (canonical fab outputs)
+│       └── posture_tracker_v2_gerbers.zip  ← upload this to JLCPCB
 ├── bom/                       ← Bill of materials
 └── datasheets/                ← Component datasheets
 ```
 
 ---
 
+## Hardware Visuals
+
+### PCB — 3D Render
+![PCB V2 3D render](hardware/assets/pcb_v2_3d.png)
+
+### PCB — Top View
+![PCB V2 top view](hardware/assets/pcb_v2_top.png)
+
+### Schematic
+![V2 Schematic](hardware/assets/schematic_v2.png)
+
+> Full schematic PDF: [hardware/schematics/posture_tracker_v2_v2.pdf](hardware/schematics/posture_tracker_v2_v2.pdf)
+
+---
+
 ## Reference Docs
 
-- [CLAUDE.md](CLAUDE.md) — full architecture, component decisions, hard rules
+- [CLAUDE.md](CLAUDE.md) — full V2 architecture, component decisions, hard rules, PCB design reference
 - [PHASES.md](PHASES.md) — V2 phase build guide (phases 7–11)
 - [hardware/schematics/SCHEMATIC_GUIDE.md](hardware/schematics/SCHEMATIC_GUIDE.md) — full reasoning for every schematic block
