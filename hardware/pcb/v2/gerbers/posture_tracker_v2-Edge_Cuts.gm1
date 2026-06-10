@@ -1,0 +1,23 @@
+G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,10.0.1*
+G04 #@! TF.CreationDate,2026-06-09T21:48:43-04:00*
+G04 #@! TF.ProjectId,posture_tracker_v2,706f7374-7572-4655-9f74-7261636b6572,rev?*
+G04 #@! TF.SameCoordinates,Original*
+G04 #@! TF.FileFunction,Profile,NP*
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 10.0.1) date 2026-06-09 21:48:43*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+G04 #@! TA.AperFunction,Profile*
+%ADD10C,0.050000*%
+G04 #@! TD*
+G04 APERTURE END LIST*
+D10*
+X160545000Y-105670000D02*
+X208405000Y-105670000D01*
+X208405000Y-134170000D01*
+X160545000Y-134170000D01*
+X160545000Y-105670000D01*
+M02*

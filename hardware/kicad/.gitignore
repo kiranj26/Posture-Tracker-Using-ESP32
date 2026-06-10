@@ -15,6 +15,7 @@ report.txt
 *.rpt
 
 # Layer exports and gerber outputs — regenerated from PCB file
+# Canonical copies live in hardware/pcb/v2/gerbers/
 *.pdf
 *.gbrjob
 *-B_Cu.*
@@ -26,6 +27,10 @@ report.txt
 *-B_Silkscreen.*
 *-F_Silkscreen.*
 *-Edge_Cuts.*
+*-F_Courtyard.*
+*-PTH.drl
+*-NPTH.drl
+gerbers/
 
 # macOS metadata
 .DS_Store

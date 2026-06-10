@@ -23,6 +23,7 @@
 15. [Build & Flash Commands](#15-build--flash-commands)
 16. [Debugging & Serial Monitor](#16-debugging--serial-monitor)
 17. [Known Constraints & Rules](#17-known-constraints--rules)
+18. [PCB Design Reference (V2)](#18-pcb-design-reference-v2)
 
 ---
 
@@ -1058,5 +1059,68 @@ These are hard rules. Claude must not suggest violating them under any circumsta
 
 ---
 
-*Last updated: 2026-04-25 — Phase 0 complete.*
-*Next step: Begin Phase 1 — I2C + raw IMU data (real mpu6050_init + read_raw).*
+## 18. PCB Design Reference (V2)
+
+### PCB Trace Width Rules
+
+All trace widths are verified against IPC-2221 standard (1oz copper, external layer, 10°C temperature rise). Do not change these without recalculating current capacity.
+
+**IPC-2221 current capacity reference (1oz copper, external layer, 10°C rise):**
+- 0.2mm → ~745mA
+- 0.3mm → ~999mA
+- 0.4mm → ~1231mA
+
+| Net | Width | Expected Current | Margin | Reason |
+|---|---|---|---|---|
+| `/VBUS` | **0.4mm** | 500mA (USB spec) | 146% | Only 48% margin at 0.2mm — too close to limit |
+| `/VBUS_FUSED` | **0.4mm** | 500mA | 146% | Post-fuse, same current as VBUS |
+| `/VBAT` | **0.4mm** | 100mA (MCP73831 set by R3=10k) | 1131% | Battery rail, robust against future current changes |
+| `+3V3` | **0.3mm** | ~120mA total (all ICs) | 733% | Power rail, lower resistance, professional standard |
+| `/SPK_P`, `/SPK_N` | **0.3mm** | ~500mA peak | 100% | MAX98357A speaker output at 3.3V into 4Ω |
+| `Net-(U4-OUTP)`, `Net-(U4-OUTN)` | **0.3mm** | ~500mA peak | 100% | Amp output before ferrite beads FB1/FB2 |
+| `/LRA_P`, `/LRA_N` | **0.3mm** | ~300mA | 233% | DRV2605 LRA motor driver output |
+| `/USB_DP`, `/USB_DM` | **0.2mm** | <10mA signal | — | USB differential pair — width kept for impedance, not current |
+| All I2S signals | **0.2mm** | <5mA | — | Digital signals, negligible current |
+| All I2C signals | **0.2mm** | <5mA | — | Digital signals, negligible current |
+| All GPIO signals | **0.2mm** | <10mA | — | BTN, LED enables, HAPTIC_EN, AUDIO_SD, MPU_INT, etc. |
+| `/VBAT_SENSE` | **0.2mm** | <1mA | — | ADC voltage divider — keep thin, no current flows |
+
+> **Why 0.2mm technically works but is wrong for power:** 0.2mm handles 745mA, which covers all currents on this board. However, professional PCB design uses wider power traces for: (1) lower IR drop across trace length, (2) robustness against manufacturing thickness variation, (3) easier visual inspection, (4) headroom for design changes. This is the same reason professional EEs use 0.4mm for power even when 0.2mm is electrically sufficient.
+
+> **USB differential pair note:** USB_DP and USB_DM stay at 0.2mm because trace width affects differential impedance (target 90Ω). On JLCPCB standard 2-layer stackup (1.6mm FR4), 0.2mm traces with 0.2mm gap achieve approximately 90Ω differential impedance. Do not widen these traces without recalculating impedance.
+
+### PCB Component Placement Rules
+
+Components must be placed within these distances from their parent IC for the circuit to function correctly:
+
+| Component Type | Max distance from IC | Reason |
+|---|---|---|
+| Decoupling caps (100n) | 3–5mm | High-frequency noise bypass — distant caps are ineffective |
+| Bulk caps (10u, 47u) | 5–8mm | Lower frequency, more distance allowed |
+| I2C pull-up resistors | 5mm from MPU-6050 | Short I2C stub reduces capacitance |
+| Ferrite beads (FB1, FB2) | <8mm from MAX98357A output | Must be in the current path before the speaker connector |
+| Speaker connector (LS1) | <6mm from ferrite beads | SPK_P/SPK_N differential pair stays short |
+| Battery charger (U5) | <12mm from battery connector (J2) | VBAT trace carries charge current |
+| ESD protection (U7) | <12mm from USB-C connector (J1) | Must be first component in USB signal path |
+
+### PCB Layer Strategy
+
+- **B.Cu (bottom):** GND copper pour covering full board. All GND pads connect via thermal relief vias to this plane. No manual GND traces needed.
+- **F.Cu (top):** All signal and power routing. Use vias to route to B.Cu when F.Cu is congested — KiCad GND fill automatically cuts around signal traces on B.Cu.
+- **Via spec:** 0.8mm outer diameter, 0.4mm drill — standard JLCPCB design rule compliant.
+
+### Net Classes
+
+| Class | Nets | Width |
+|---|---|---|
+| Power | `+3V3`, `/VBAT` | 0.3mm |
+| HighCurrent | `/VBUS`, `/VBUS_FUSED` | 0.4mm |
+| Audio | `/SPK_P`, `/SPK_N`, `Net-(U4-OUTP)`, `Net-(U4-OUTN)` | 0.3mm |
+| Motor | `/LRA_P`, `/LRA_N` | 0.3mm |
+| USB_Diff | `/USB_DP`, `/USB_DM` | 0.2mm (impedance controlled) |
+| Default | All others | 0.2mm |
+
+---
+
+*Last updated: 2026-06-09 — PCB V2 routing in progress.*
+*Firmware phases 0–6 complete. PCB V2: traces routed, GND plane poured on B.Cu, trace widths verified against IPC-2221.*

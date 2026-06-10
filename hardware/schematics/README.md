@@ -13,7 +13,7 @@ posture_tracker_v2_r2.kicad_sch    ← after first revision corrections
 
 | File | Revision | Status | Notes |
 |---|---|---|---|
-| posture_tracker_v2 | R1 | ✅ Complete | All 7 blocks done. ERC: 0 errors, 5 warnings. Reddit review fixes applied. |
+| posture_tracker_v2_v2.pdf | R1 | ✅ Complete | Exported schematic PDF. All 7 blocks done. ERC: 0 errors, 5 warnings. Reddit review fixes applied. |
 
 ## Connector decisions (2026-05-03)
 

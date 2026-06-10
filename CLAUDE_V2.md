@@ -948,13 +948,20 @@ Calibration handles any mounting offset, including the ~45° shoulder angle.
 ### Phase 10 — PCB V2 Design & Fabrication
 **Goal:** First assembled custom PCB.
 
+**Status (2026-06-09):** Design complete on `feature/pcb-schematic`. Awaiting JLCPCB order.
+- ✅ Schematic: all 7 blocks complete, ERC clean (0 errors)
+- ✅ PCB layout: all nets routed, DRC clean (0 errors, 0 unconnected, 2 cosmetic silk warnings)
+- ✅ Gerbers: exported to `hardware/pcb/v2/gerbers/`, ZIP ready
+- ⏳ JLCPCB order: pending
+- ⏳ Assembly + validation: pending receipt of boards
+
 **Steps:**
-1. Schematic capture (KiCad or EasyEDA)
-2. PCB layout per Section 15 guidelines
-3. DRC — zero errors
-4. Gerber export + BOM + CPL for JLCPCB
-5. Order 5 prototype units
-6. Assemble, flash, verify all Phase 7–9 functionality
+1. ✅ Schematic capture (KiCad)
+2. ✅ PCB layout per Section 15 guidelines
+3. ✅ DRC — zero errors
+4. ✅ Gerber export — `hardware/pcb/v2/posture_tracker_v2_gerbers.zip`
+5. ⏳ Order 5 prototype units from JLCPCB
+6. ⏳ Assemble, flash, verify all Phase 7–9 functionality
 
 **Pass criteria:**
 - All ICs detected on I2C bus

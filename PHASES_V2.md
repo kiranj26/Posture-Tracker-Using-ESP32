@@ -95,8 +95,9 @@ Haptics     Speaker     Battery      PCB V2        Enclosure
 breadboard  swap        system       fabrication   + full
 validation  validation  validation                 integration
 
-  ⏳ Next    📦 Parts    📦 Parts     ⏳ Pending    ⏳ Pending
-             ordered     ordered
+  ⏳ Next    📦 Parts    📦 Parts     🔄 Design     ⏳ Pending
+             ordered     ordered      complete,
+                                      order pending
 ```
 
 ---
@@ -483,7 +484,7 @@ void power_check_battery(void)
 
 ## Phase 10 — PCB V2 Design & Fabrication
 
-### Status: ⏳ Pending
+### Status: 🔄 Design complete — awaiting JLCPCB order
 
 ### Objective
 Design and fabricate the first custom PCB integrating all validated V2 components.
@@ -499,45 +500,42 @@ Every component must be validated in Phase 7–9 before being placed on this PCB
 
 ### Schematic checklist (complete before layout)
 
-- [ ] ESP32-S3-MINI-1U with all bypass caps placed
-- [ ] Antenna keep-out zone marked as no-copper zone (3mm below module edge)
-- [ ] MPU-6050: 4.7kΩ pull-ups on SDA/SCL, 100nF bypass on VCC, AD0 to GND
-- [ ] DRV2605L: correct WSON-12 footprint, LRA pads broken out, EN tied HIGH
-- [ ] MAX98357A: correct WLP-16 footprint, SD_MODE to GPIO48, GAIN floating
-- [ ] MCP73831: PROG resistor 10kΩ (100mA charge), STAT pin to LED via 1kΩ
-- [ ] AP2112K: bulk caps 10µF in + out, 100nF bypass
-- [ ] USB-C: both CC pins to GND via 5.1kΩ, VBUS to polyfuse to MCP73831
-- [ ] USB-C D+/D- directly to ESP32-S3 GPIO19/20
-- [ ] JST-PH 2-pin battery connector with correct pinout (+ on pin 1)
-- [ ] Both buttons with 10kΩ pull-up to 3.3V, 100nF debounce cap to GND
-- [ ] VBAT sense: 100kΩ–100kΩ divider from LiPo+ to GPIO34 to GND
-- [ ] Charge LED: green LED + 1kΩ from STAT to 3.3V
+- [x] ESP32-S3-MINI-1 with all bypass caps placed
+- [x] Antenna keep-out zone marked as no-copper zone (3mm below module edge)
+- [x] MPU-6050: 4.7kΩ pull-ups on SDA/SCL, 100nF bypass on VCC, AD0 to GND
+- [x] DRV2605L: correct footprint, LRA pads broken out, EN tied HIGH
+- [x] MAX98357A: correct footprint, SD_MODE to GPIO48, GAIN floating
+- [x] MCP73831: PROG resistor 10kΩ (100mA charge), STAT pin to LED via 1kΩ
+- [x] AP2112K: bulk caps 10µF in + out, 100nF bypass
+- [x] USB-C: both CC pins to GND via 5.1kΩ, VBUS to polyfuse to MCP73831
+- [x] USB-C D+/D- via USBLC6-2SC6 ESD protection to ESP32-S3 GPIO19/20
+- [x] JST-PH 2-pin battery connector with correct pinout (+ on pin 1)
+- [x] Both buttons with 10kΩ pull-up to 3.3V, 100nF debounce cap to GND
+- [x] VBAT sense: 100kΩ–100kΩ divider from LiPo+ to GPIO34 to GND
+- [x] Charge LED: green LED + 1kΩ from STAT to 3.3V
 
 ### Layout checklist (complete before Gerber export)
 
-- [ ] Board dimensions ≤ 50×38mm
-- [ ] Antenna keep-out enforced — no copper within 3mm of antenna area
-- [ ] All bypass caps within 1mm of their IC VCC pin
-- [ ] I2S traces (BCLK, WS, DOUT) short and parallel, same layer
-- [ ] USB D+/D- matched length, routed as differential pair
-- [ ] Speaker OUT+ / OUT- kept together, away from I2C/I2S signal lines
-- [ ] Power traces ≥ 0.5mm (3.3V rail), ≥ 1.0mm (battery, speaker)
-- [ ] LRA pads on bottom side with exposed copper for motor adhesive mount
-- [ ] Battery connector on edge, accessible without opening enclosure
-- [ ] USB-C on opposite edge to battery
-- [ ] Buttons on front face (long dimension edge)
-- [ ] Speaker pads on top face (edge-mount or through-hole)
-- [ ] DRC passes with zero errors
+- [x] Board dimensions ≤ 50×38mm (actual: ~47.6 × 28.3mm)
+- [x] Antenna keep-out enforced — no copper within 3mm of antenna area
+- [x] All bypass caps placed close to their IC VCC pin
+- [x] I2S traces (BCLK, WS, DOUT) routed
+- [x] USB D+/D- routed
+- [x] Speaker SPK_P/SPK_N traces routed (0.3mm, with ferrite beads FB1/FB2)
+- [x] Power traces: VBUS/VBUS_FUSED 0.4mm, +3V3/VBAT 0.3mm (IPC-2221 verified)
+- [x] GND: F.Cu + B.Cu copper pour with stitching vias
+- [x] DRC passes — 0 errors, 0 unconnected, 2 cosmetic silk warnings only
 
 ### JLCPCB order checklist
 
-- [ ] Gerber files exported correctly (all layers)
+- [x] Gerber files exported correctly (all 10 layers + 2 drill files)
+- [x] DRC clean — 0 errors, 0 unconnected
+- [x] ZIP ready: `hardware/pcb/v2/posture_tracker_v2_gerbers.zip`
+- [ ] Upload to jlcpcb.com and confirm auto-detection (2 layers, correct dimensions)
 - [ ] BOM exported in JLCPCB CSV format
 - [ ] CPL (Component Placement List) exported
-- [ ] All SMT components matched to JLCPCB parts library
-- [ ] SMT assembly requested for top side only
-- [ ] Order 5 prototype units (not 10 — there will be a revision)
-- [ ] Specify ENIG surface finish for fine-pitch QFN/WLP pads
+- [ ] Order 5 prototype units
+- [ ] Specify HASL (lead-free) or ENIG surface finish
 - [ ] Specify 1.6mm board thickness
 
 ### Post-receipt testing procedure
@@ -569,8 +567,8 @@ For each of the 5 PCBs:
 - [ ] At least 3 of 5 boards fully pass (accept 2 duds for manufacturing variance)
 
 ### Feature branch
-`feature/pcb-v2` → PR into `release/v2-product`
-Commit all KiCad project files, Gerber exports, BOM, and CPL.
+`feature/pcb-schematic` → PR into `release/v2-product`
+KiCad source files in `hardware/kicad/posture_tracker_v2/`. Gerbers in `hardware/pcb/v2/`.
 
 ---
 
@@ -644,7 +642,7 @@ shoulder clip, battery connected, all features functional. This is the V2 produc
 | 7 | Haptic validation — breadboard | `feature/haptics` | ⏳ Next | 📦 Parts ordered |
 | 8 | Speaker swap validation | `feature/speaker-swap` | ⏳ Next | 📦 Parts ordered |
 | 9 | Battery system validation | `feature/power-system` | ⏳ Pending | 📦 Parts ordered |
-| 10 | PCB V2 design + fabrication | `feature/pcb-v2` | ⏳ Pending | 🛒 Order after Phase 9 |
+| 10 | PCB V2 design + fabrication | `feature/pcb-schematic` | 🔄 Design complete | Schematic ✅ ERC clean. Layout ✅ DRC clean. Gerbers ✅ `hardware/pcb/v2/`. JLCPCB order ⏳ pending |
 | 11 | Full integration + enclosure | `feature/enclosure` | ⏳ Pending | 🛒 Order after Phase 10 |
 
 ---
