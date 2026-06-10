@@ -223,13 +223,21 @@ hardware/
 ### PCB — 3D Render
 ![PCB V2 3D render](hardware/assets/pcb_v2_3d.png)
 
-### PCB — Top View
-![PCB V2 top view](hardware/assets/pcb_v2_top.png)
+### PCB — Top Layer
+![PCB V2 top layer](hardware/assets/pcb_v2_top_layer.png)
+
+### PCB — Bottom Layer
+![PCB V2 bottom layer](hardware/assets/pcb_v2_bottom_layer.png)
+
+### PCB — Combined
+![PCB V2 combined](hardware/assets/pcb_v2_combined.png)
 
 ### Schematic
 ![V2 Schematic](hardware/assets/schematic_v2.png)
 
 > Full schematic PDF: [hardware/schematics/posture_tracker_v2_v2.pdf](hardware/schematics/posture_tracker_v2_v2.pdf)
+
+> PCB layer PDFs (vector): [Top](hardware/assets/pcb_v2_top_layer.pdf) · [Bottom](hardware/assets/pcb_v2_bottom_layer.pdf) · [Combined](hardware/assets/pcb_v2_combined.pdf)
 
 ---
 
