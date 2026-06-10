@@ -29,8 +29,6 @@ Screenshots and renders for use in README files.
 | `pcb_v2_top_layer.png` | ✅ Captured | `README.md` |
 | `pcb_v2_bottom_layer.png` | ✅ Captured | `README.md` |
 | `pcb_v2_combined.png` | ✅ Captured | `README.md` |
-| `pcb_v2_top.png` | ✅ Captured | — |
-| `schematic_v2.png` | ✅ Captured | — |
 | `pcb_v2_top_layer.pdf` | ✅ Generated via kicad-cli | `README.md` (inline link) |
 | `pcb_v2_bottom_layer.pdf` | ✅ Generated via kicad-cli | `README.md` (inline link) |
 | `pcb_v2_combined.pdf` | ✅ Generated via kicad-cli | `README.md` (inline link) |
