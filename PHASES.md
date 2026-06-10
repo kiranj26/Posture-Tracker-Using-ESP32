@@ -1,188 +1,163 @@
-# PHASES.md — Posture Tracker Build Phases
+# PHASES.md — Posture Tracker V2 Build Guide
 
-> **Purpose of this file:** A detailed, phase-by-phase implementation guide. Each phase is self-contained, testable, and has a hard pass/fail criterion. No phase may be skipped. No code from a later phase may be written until the current phase is passing.
->
-> **Companion file:** Read `CLAUDE.md` first for all architecture decisions, hardware specs, and coding conventions. This file tells you *what to build and in what order*. `CLAUDE.md` tells you *how it must be built*.
+> **Branch:** `release/v2-product`
+> This file documents every V2 development phase with entry conditions, exact steps,
+> and pass criteria. No phase may be skipped. No PR merged to `release/v2-product`
+> without the phase pass criteria verified on real hardware.
+> V1 phases (0–6) are on the [main branch](../../tree/main).
+
+---
+
+## Hardware Procurement Log
+
+All components confirmed and ordered as of 2026-04-26. Documented here so
+future sessions know exactly what hardware is in hand and why each part was chosen.
+
+### Ordered — In Transit
+
+| Item | Source | Order Ref | Qty | Unit Cost | Phase | Status |
+|---|---|---|---|---|---|---|
+| Adafruit DRV2605L breakout #2305 | Adafruit | — | 1 | $7.95 | 7 | 🚚 In transit |
+| MECCANIXITY 20mm 8Ω 1W speaker | Amazon | — | 4pk | $8.49 | 8 | 🚚 In transit |
+| Vybronics VG1030001XH LRA motor | Digikey | 1670-VG1030001XH-ND | 3 | $2.96 | 7 | 🚚 In transit |
+| Adafruit 350mAh LiPo #2750 | Digikey | 1528-1858-ND | 2 | $6.95 | 9 | 🚚 In transit |
+
+### Component Selection Rationale
+
+**Haptic Driver — Adafruit DRV2605L breakout #2305**
+- Chosen because: breakout board handles all support components (pull-ups, caps)
+- Shares existing I2C bus with MPU-6050 — no new GPIO pins
+- I2C address 0x5A — no conflict with MPU-6050 at 0x68
+- 123 built-in LRA waveform library — no waveform generation in firmware
+- For Phase 7 breadboard only — bare DRV2605LDGSR IC goes on PCB V2
+
+**LRA Motor — Vybronics VG1030001XH (Digikey 1670-VG1030001XH-ND)**
+- 10mm diameter, LRA Z-axis — correct axis for wearable (vibrates into skin)
+- 2VAC rated, 210Hz resonant frequency — DRV2605L auto-tracks resonance
+- 1.5G vibration force — strong enough to feel through clothing
+- **Wire leads pre-attached** — plugs directly into DRV2605L breakout, no soldering thin wire
+- Active part, not discontinued — safe to design PCB V2 around
+- Ordered qty 3: 1 for Phase 7 breadboard, 2 spares
+
+**Speaker — MECCANIXITY 20mm 8Ω 1W (Amazon)**
+- 20mm diameter — minimum size for intelligible voice clip playback
+- 8Ω — matches MAX98357A V2 configuration (changed from 4Ω in V1)
+- 1W — adequate for escalation alerts at 0.5–1 metre
+- Pre-soldered 100mm wires — plug straight into MAX98357A output terminals
+- 4 pack — 1 for Phase 8 testing, 3 spares / PCB V2 candidates
+- Arrives Friday May 1 — Phase 8 can start immediately on arrival
+
+**Battery — Adafruit #2750 350mAh LiPo (Digikey 1528-1858-ND)**
+- 350mAh at 3.7V — gives 12–15 hour real-world runtime (calculated in CLAUDE.md §6)
+- Dimensions 36×20×5.6mm — fits behind 45×35mm PCB with 1mm clearance each side
+- JST-PH connector — matches MCP73831 charging circuit connector standard
+- Built-in PCM protection circuit — prevents overcharge, overdischarge, short circuit
+- Ordered qty 2: 1 for Phase 9 validation, 1 spare
+
+### Still To Order (Phase 10 — after Phases 7–9 validated)
+
+These are NOT ordered yet. Order only after Phase 7, 8, 9 pass criteria are confirmed
+on breadboard. Ordering early risks buying parts that need to change.
+
+| Item | Digikey Part # | Qty | Phase |
+|---|---|---|---|
+| ESP32-S3-MINI-1U-N8 | 1965-ESP32-S3-MINI-1U-N8CT-ND | 3 | 10 |
+| MPU-6050 bare IC | 1428-1011-1-ND | 3 | 10 |
+| DRV2605LDGSR bare IC | 296-43883-1-ND | 3 | 10 |
+| MAX98357AEWL bare IC | MAX98357AEWL+CT-ND | 3 | 10 |
+| MCP73831T-2ACI/OT | MCP73831T-2ACI/OTCT-ND | 3 | 10 |
+| AP2112K-3.3TRG1 | AP2112K-3.3TRG1DICT-ND | 3 | 10 |
+| GCT USB4135-GF-A USB-C | 2073-USB4135-GF-ACT-ND | 3 | 10 |
+| Alps SKRPABE010 buttons | SKRPABE010CT-ND | 6 | 10 |
+| JST-PH 2-pin connector | 455-1719-ND | 3 | 10 |
+| 4.7kΩ 0402 resistor | 311-4.7KLRCT-ND | 50 | 10 |
+| 10kΩ 0402 resistor | 311-10.0KLRCT-ND | 50 | 10 |
+| 5.1kΩ 0402 resistor | 311-5.10KLRCT-ND | 50 | 10 |
+| 1kΩ 0402 resistor | 311-1.00KLRCT-ND | 50 | 10 |
+| 100nF 0402 cap | 311-1375-1-ND | 50 | 10 |
+| 10µF 0805 cap | 399-8419-1-ND | 20 | 10 |
+| 22µF 0805 cap | 399-8423-1-ND | 10 | 10 |
+| 1µF 0402 cap | 311-1543-1-ND | 20 | 10 |
+| 500mA polyfuse 0805 | MINISMDC050F/24-2CT-ND | 5 | 10 |
+| Green LED 0402 | 160-1446-1-ND | 10 | 10 |
+
+> **Before ordering Phase 10 parts:** verify every Digikey part number in browser.
+> Part numbers above are correct at time of writing (2026-04-26) but may change.
+> Always confirm description matches before adding to cart.
 
 ---
 
 ## Phase Map
 
 ```
-Phase 0 ──► Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4 ──► Phase 5 ──► Phase 6
- Toolchain    I2C +       Angles +    I2S +       Calibra-    Full         Endur-
- + Scaffold   Raw data    Filter      Speaker     tion         Integration  ance
-```
+Phase 7 ──► Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 11
+Haptics     Speaker     Battery      PCB V2        Enclosure
+breadboard  swap        system       fabrication   + full
+validation  validation  validation                 integration
 
-Each arrow is a gate. You must pass the gate before crossing it.
-
----
-
-## Phase 0 — Toolchain Verification & Project Scaffold ✅ COMPLETE
-
-### Objective
-Verify the full build toolchain works end-to-end before writing any real firmware.
-Create the complete project skeleton — all files, all directories, all config — so
-every subsequent phase starts from a known-good, compilable base.
-
-### Why this phase exists
-You cannot debug I2C, audio, or state machine bugs if the build system itself is
-broken. Phase 0 proves the toolchain, the flash pipeline, and the board all work
-before any hardware-specific code is written. Finding a toolchain or config problem
-in Phase 0 takes 10 minutes. Finding it buried inside Phase 3 takes hours.
-
-### What was discovered and fixed in this phase
-
-#### Issue 1 — PlatformIO not on system PATH
-PlatformIO Core 6.1.19 was installed at `~/.platformio/penv/bin/pio` but not
-symlinked onto the system PATH. The VS Code PlatformIO extension uses its own
-bundled copy so this does not affect the IDE. The fix is to always invoke via the
-full path in terminal, or use the VS Code toolbar buttons.
-
-#### Issue 2 — Flash size mismatch (2MB vs 4MB)
-On first build, PlatformIO auto-generated `sdkconfig.esp32` with
-`CONFIG_ESPTOOLPY_FLASHSIZE_2MB=y`. The ESP32 Mini Dev Kit has 4MB flash.
-This caused a partition table address mismatch at flash time.
-
-**Fix:** Added `board_build.flash_size = 4MB` to `platformio.ini` and
-`CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y` to `sdkconfig.defaults`. Deleted the stale
-`sdkconfig.esp32` so it regenerated correctly from `sdkconfig.defaults`.
-
-#### Issue 3 — Bootloader/partition table overlap (ESP-IDF 5.x)
-ESP-IDF 5.5.0 produces a bootloader of ~29,536 bytes (~29KB). The traditional
-ESP32 partition table address of `0x8000` sits only 28KB from the bootloader
-start at `0x1000`. The bootloader therefore ran past `0x8000` by ~864 bytes,
-causing esptool to refuse to flash:
-
-```
-esptool write_flash: error: Detected overlap at address: 0x8000
-```
-
-**Fix:** Added `CONFIG_PARTITION_TABLE_OFFSET=0x9000` to `sdkconfig.defaults`.
-This moves the partition table 4KB further down the street, giving the bootloader
-sufficient room. The app offset moved automatically to `0x20000`.
-
-Address layout after fix:
-```
-0x1000   Bootloader starts  (~29KB)
-0x8360   Bootloader ends
-           ↑ 3KB gap
-0x9000   Partition table    ← moved here
-0x20000  Firmware (app)
-```
-
-### Files created in this phase
-
-| File | Purpose |
-|---|---|
-| `platformio.ini` | PlatformIO project config — board, framework, flash size, embed_files, build_flags |
-| `CMakeLists.txt` | Root ESP-IDF CMake entry point |
-| `sdkconfig.defaults` | All required sdkconfig settings (locked, version-controlled) |
-| `sdkconfig.esp32` | Auto-generated by build — reflects active sdkconfig for esp32 env |
-| `.gitignore` | Excludes `.pio/` build artifacts and `sdkconfig.old` |
-| `src/main/CMakeLists.txt` | Registers all 4 source files, embeds WAV, links `-lm` |
-| `src/main/config.h` | All compile-time constants from CLAUDE.md — complete, no stubs |
-| `src/main/main.c` | Stub `app_main()` — logs one line and returns |
-| `src/main/mpu6050.c/.h` | Stub MPU-6050 driver — compiles, no real I2C yet |
-| `src/main/audio.c/.h` | Stub audio driver — all types/enums defined, no I2S yet |
-| `src/main/posture_fsm.c/.h` | Stub FSM — compiles, no logic yet |
-| `src/main/voice/sit_up.wav` | Placeholder WAV — required for embed_files to compile |
-
-### Phase 0 pass criteria — ALL verified ✅
-
-- [x] `pio --version` confirms PlatformIO Core 6.1.19 installed
-- [x] `espressif32` platform, `framework-espidf` 5.5.0, `toolchain-xtensa-esp32` all present
-- [x] Project builds with zero errors and zero warnings
-- [x] Firmware flashes to board without errors
-- [x] Serial monitor shows correct boot sequence ending with:
-      `I (672) MAIN: Posture Tracker — Phase 0 scaffold build OK`
-- [x] Both CPU cores confirmed active (`Multicore app` in boot log)
-- [x] Flash size confirmed 4MB in boot log (`SPI Flash Size : 4MB`)
-- [x] Partition table loaded from `0x9000` confirmed in boot log
-- [x] App loaded from `0x20000` confirmed in boot log
-
-### Expected serial output (verified)
-```
-I (30)  boot: ESP-IDF 5.5.0 2nd stage bootloader
-I (30)  boot: Multicore bootloader
-I (100) boot.esp32: SPI Flash Size : 4MB
-I (131) boot: Partition Table:
-I (148) boot:  0 nvs      WiFi data   01 02  0000a000
-I (176) boot:  2 factory  factory app 00 00  00020000
-I (546) boot: Loaded app from partition at offset 0x20000
-I (580) cpu_start: Multicore app
-I (588) cpu_start: cpu freq: 160000000 Hz
-I (588) app_init: Project name:  posture_tracker
-I (606) app_init: ESP-IDF:       5.5.0
-I (672) main_task: Calling app_main()
-I (672) MAIN: Posture Tracker — Phase 0 scaffold build OK
-I (672) main_task: Returned from app_main()
+  ⏳ Next    📦 Parts    📦 Parts     ⏳ Pending    ⏳ Pending
+             ordered     ordered
 ```
 
 ---
 
-## Phase 1 — I2C Communication & Raw IMU Data
+## Phase 7 — Haptic Validation on Breadboard
+
+### Status: ⏳ Next
 
 ### Objective
-Prove that the ESP32 can communicate with the MPU-6050 over I2C and read raw sensor bytes. This is purely about hardware validation and driver skeleton — no math, no FreeRTOS tasks, no audio.
+Prove the DRV2605L + LRA motor combination works, feels right, and produces
+clearly distinguishable feedback patterns — all before committing to PCB layout.
+This phase has zero PCB risk. If something feels wrong, fix it in firmware.
 
-### Why this phase exists
-The entire project collapses if the I2C bus is not working. Wrong pin assignment, missing pull-ups, wrong I2C address, wrong register write — any of these silently breaks everything downstream. Phase 1 makes the hardware visible before building anything on top of it.
+### Entry conditions
+- V1 breadboard (phases 0–6) working and flashed
+- Adafruit DRV2605L breakout board purchased
+- 10mm LRA motor purchased (Jinlong Z10SC2B or equivalent)
+- `release/v2-product` branch checked out
 
-### Files touched in this phase
-
-| File | Action | Notes |
+### Hardware needed
+| Item | Where to buy | Approx cost |
 |---|---|---|
-| `src/main/CMakeLists.txt` | Create | Minimal — just registers `main.c` and `mpu6050.c` |
-| `src/main/config.h` | Create | Only I2C constants for now |
-| `src/main/mpu6050.h` | Create | Declare `mpu6050_init()` and raw read only |
-| `src/main/mpu6050.c` | Create | Full I2C driver skeleton |
-| `src/main/main.c` | Create | `app_main()` with init + print loop only |
+| Adafruit DRV2605L breakout (#2305) | adafruit.com | $7.95 |
+| 10mm LRA motor | Digikey / Mouser / Adafruit #1201 | $3–5 |
+| 4× jumper wires | Already have | — |
 
-### What to build — step by step
+### Wiring — DRV2605L breakout to ESP32
 
-#### Step 1.1 — config.h (I2C section only)
-Create `config.h` with ONLY the constants needed for Phase 1. Do not add audio or threshold constants yet — they will be added in their respective phases.
-
-```c
-#pragma once
-
-// I2C Bus
-#define I2C_MASTER_PORT      I2C_NUM_0
-#define I2C_MASTER_SDA_IO    21
-#define I2C_MASTER_SCL_IO    22
-#define I2C_MASTER_FREQ_HZ   400000
-#define I2C_TIMEOUT_MS       100
-
-// MPU-6050 device
-#define MPU6050_ADDR         0x68
-#define MPU_REG_PWR_MGMT_1   0x6B
-#define MPU_REG_WHO_AM_I     0x75
-#define MPU_REG_SMPLRT_DIV   0x19
-#define MPU_REG_CONFIG       0x1A
-#define MPU_REG_ACCEL_CONFIG 0x1C
-#define MPU_REG_GYRO_CONFIG  0x1B
-#define MPU_REG_ACCEL_XOUT_H 0x3B
-#define MPU_WHO_AM_I_RESP    0x68
-#define IMU_SAMPLE_RATE_MS   100
+```
+DRV2605L breakout   →   ESP32
+─────────────────────────────────
+VIN                 →   3.3V
+GND                 →   GND
+SDA                 →   GPIO 21   (shared with MPU-6050)
+SCL                 →   GPIO 22   (shared with MPU-6050)
+LRA+ / MOTOR+       →   LRA motor wire 1
+LRA- / MOTOR-       →   LRA motor wire 2
 ```
 
-#### Step 1.2 — mpu6050.c (I2C helpers + init + raw read)
-The file must implement:
+> The Adafruit breakout has onboard pull-ups on SDA/SCL. The MPU-6050 GY-521 breakout
+> also has onboard pull-ups. With both on the same bus you now have two sets of pull-ups
+> in parallel — effective pull-up ~2.35kΩ. This is within I2C spec. Do NOT add more.
 
-- `static esp_err_t mpu6050_write_reg(uint8_t reg, uint8_t val)` — single byte register write
-- `static esp_err_t mpu6050_read_regs(uint8_t reg, uint8_t *buf, size_t len)` — burst register read
-- `esp_err_t mpu6050_init(void)` — I2C master init + sensor wake + config + WHO_AM_I verify
-- `esp_err_t mpu6050_read_raw(int16_t *ax, int16_t *ay, int16_t *az)` — read and reconstruct int16 from 6 raw bytes
+> LRA motor has no polarity. Either wire order works.
 
-> **Note on read_raw:** In Phase 1 we expose a `mpu6050_read_raw()` function that returns raw int16 values, not angles. In Phase 2 we replace this with `mpu6050_read_angles()`. This gives us something concrete to print in Phase 1 without any math.
+### What to build
 
-**I2C write pattern:**
+**New file: `src/main/haptic.c`**
 ```c
-static esp_err_t mpu6050_write_reg(uint8_t reg, uint8_t val) {
+#include "config.h"
+#include "esp_log.h"
+#include "driver/i2c.h"
+#include "haptic.h"
+
+static const char *TAG = "HAPTIC";
+
+static esp_err_t drv_write(uint8_t reg, uint8_t val)
+{
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (MPU6050_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, (DRV2605L_ADDR << 1) | I2C_MASTER_WRITE, true);
     i2c_master_write_byte(cmd, reg, true);
     i2c_master_write_byte(cmd, val, true);
     i2c_master_stop(cmd);
@@ -190,1034 +165,521 @@ static esp_err_t mpu6050_write_reg(uint8_t reg, uint8_t val) {
     i2c_cmd_link_delete(cmd);
     return ret;
 }
-```
 
-**I2C burst read pattern:**
-```c
-static esp_err_t mpu6050_read_regs(uint8_t reg, uint8_t *buf, size_t len) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (MPU6050_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg, true);
-    i2c_master_start(cmd);  // repeated start
-    i2c_master_write_byte(cmd, (MPU6050_ADDR << 1) | I2C_MASTER_READ, true);
-    i2c_master_read(cmd, buf, len, I2C_MASTER_LAST_NACK);
-    i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_PORT, cmd, pdMS_TO_TICKS(I2C_TIMEOUT_MS));
-    i2c_cmd_link_delete(cmd);
-    return ret;
-}
-```
-
-**mpu6050_init() must do in order:**
-1. Configure `i2c_config_t` struct — mode, SDA/SCL pins, pullup enable, clock speed
-2. `i2c_param_config(I2C_MASTER_PORT, &conf)`
-3. `i2c_driver_install(I2C_MASTER_PORT, I2C_MODE_MASTER, 0, 0, 0)`
-4. `mpu6050_write_reg(MPU_REG_PWR_MGMT_1, 0x00)` — wake from sleep
-5. `vTaskDelay(pdMS_TO_TICKS(100))` — let sensor stabilise after wake
-6. Read WHO_AM_I: `mpu6050_read_regs(MPU_REG_WHO_AM_I, &who, 1)`
-7. If `who != MPU_WHO_AM_I_RESP` — log FATAL, return ESP_FAIL
-8. `mpu6050_write_reg(MPU_REG_SMPLRT_DIV, 0x09)` — 100Hz output rate
-9. `mpu6050_write_reg(MPU_REG_CONFIG, 0x04)` — DLPF ~21Hz
-10. `mpu6050_write_reg(MPU_REG_ACCEL_CONFIG, 0x00)` — ±2g range
-11. `mpu6050_write_reg(MPU_REG_GYRO_CONFIG, 0x00)` — ±250°/s range
-12. Log success, return ESP_OK
-
-**mpu6050_read_raw():**
-```c
-esp_err_t mpu6050_read_raw(int16_t *ax, int16_t *ay, int16_t *az) {
-    uint8_t buf[6];
-    esp_err_t ret = mpu6050_read_regs(MPU_REG_ACCEL_XOUT_H, buf, 6);
-    if (ret != ESP_OK) return ret;
-    *ax = (int16_t)((buf[0] << 8) | buf[1]);
-    *ay = (int16_t)((buf[2] << 8) | buf[3]);
-    *az = (int16_t)((buf[4] << 8) | buf[5]);
+esp_err_t haptic_init(void)
+{
+    // Exit standby, internal trigger mode
+    if (drv_write(0x01, 0x00) != ESP_OK) {
+        ESP_LOGE(TAG, "DRV2605L not found on I2C bus at 0x%02X", DRV2605L_ADDR);
+        return ESP_FAIL;
+    }
+    drv_write(0x1D, 0xA8);  // LRA open-loop
+    drv_write(0x03, 0x02);  // LRA library
+    drv_write(0x16, 0x53);  // Rated voltage ~1.8Vrms for 10mm LRA
+    drv_write(0x17, 0x74);  // Overdrive clamp voltage
+    ESP_LOGI(TAG, "DRV2605L initialised — LRA mode");
     return ESP_OK;
 }
-```
 
-#### Step 1.3 — main.c (minimal loop)
-```c
-void app_main(void) {
-    ESP_LOGI(TAG, "Posture Tracker — Phase 1 starting");
-
-    esp_err_t ret = mpu6050_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "FATAL: MPU-6050 init failed");
-        abort();
-    }
-
-    int16_t ax, ay, az;
-    while (1) {
-        ret = mpu6050_read_raw(&ax, &ay, &az);
-        if (ret == ESP_OK) {
-            ESP_LOGI(TAG, "ax=%6d  ay=%6d  az=%6d", ax, ay, az);
-        } else {
-            ESP_LOGW(TAG, "Read failed");
-        }
-        vTaskDelay(pdMS_TO_TICKS(IMU_SAMPLE_RATE_MS));
-    }
+void haptic_play(uint8_t waveform_id)
+{
+    drv_write(0x04, waveform_id);  // Waveform slot 0
+    drv_write(0x05, 0x00);          // End of sequence
+    drv_write(0x0C, 0x01);          // GO
 }
 ```
 
-### Expected serial output
-```
-I (312)  MAIN:    Posture Tracker - Phase 1 starting
-I (415)  MPU6050: WHO_AM_I: 0x68 - device confirmed
-I (416)  MPU6050: Registers configured OK
-I (517)  MAIN:    ax=   312  ay=  -204  az= 16180
-I (618)  MAIN:    ax=   308  ay=  -198  az= 16175
-I (719)  MAIN:    ax=   315  ay=  -201  az= 16182
-```
-
-> **Note on az value:** When the sensor is lying flat, az should be close to ±16384 (that is 1g at ±2g sensitivity = 16384 LSB/g). If it reads near 0, the sensor may be oriented differently — that is fine for MVP.
-
-### Phase 1 pass criteria — ALL must be true
-
-- [ ] Build succeeds with zero errors and zero warnings
-- [ ] Serial shows `WHO_AM_I: 0x68` at every boot
-- [ ] ax, ay, az values print continuously at ~10Hz
-- [ ] Tilting the sensor forward/backward changes ax value noticeably (>500 LSB)
-- [ ] Tilting the sensor sideways changes ay value noticeably (>500 LSB)
-- [ ] Values are consistent and not random/garbage
-- [ ] No I2C errors appear in 60 seconds of continuous running
-- [ ] No crashes or reboots in 60 seconds
-
-### Common Phase 1 failures and fixes
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `WHO_AM_I: 0x00` | SDA/SCL pins swapped | Swap GPIO 21 and 22 |
-| `WHO_AM_I: 0xFF` | No I2C device found — wiring open | Check all 4 wires, reseat breadboard |
-| `WHO_AM_I: 0x72` | Different version of MPU chip | Change `MPU_WHO_AM_I_RESP` to match |
-| All values zero | Sensor in sleep — PWR_MGMT_1 write failed | Confirm write_reg return checked |
-| Values changing without movement | No pull-ups on I2C bus | GY-521 has onboard ones — check jumper |
-| Immediate crash/reboot | Stack overflow in app_main | Increase `CONFIG_ESP_MAIN_TASK_STACK_SIZE` |
-
----
-
-## Phase 2 — Angle Computation & Low-Pass Filter
-
-### Objective
-Convert raw accelerometer counts into pitch and roll angles in degrees. Apply a software low-pass filter to smooth out vibration noise. Validate that the angles track real physical orientation correctly.
-
-### Why this phase exists
-Raw int16 values are meaningless to the state machine — it needs angles. The low-pass filter is critical for suppressing false positives from desk vibration and keyboard typing. This phase validates both the math and the filter tuning before any alert logic is added.
-
-### Files touched in this phase
-
-| File | Action | Notes |
-|---|---|---|
-| `src/main/mpu6050.h` | Modify | Replace `read_raw` with `read_angles`, add `reset_filter` |
-| `src/main/mpu6050.c` | Modify | Add atan2 math, EMA filter state, `reset_filter()` |
-| `src/main/config.h` | Modify | Add `LPF_ALPHA` and `MPU_ACCEL_SENSITIVITY` |
-| `src/main/main.c` | Modify | Call `read_angles` instead of `read_raw`, print degrees |
-
-### What to build — step by step
-
-#### Step 2.1 — Add constants to config.h
-```c
-#define MPU_ACCEL_SENSITIVITY  16384.0f   // LSB/g for ±2g range
-#define LPF_ALPHA              0.15f      // EMA coefficient — lower = smoother
-```
-
-#### Step 2.2 — Add angle math to mpu6050.c
-Replace `mpu6050_read_raw` with `mpu6050_read_angles`. Add two static variables for filter state. Add `mpu6050_reset_filter()`.
-
-**Angle math derivation:**
-```
-raw int16 → scale to g-units → compute trig angles
-
-gx = ax_raw / 16384.0f     (g-units, ±1.0 for ±1g)
-gy = ay_raw / 16384.0f
-gz = az_raw / 16384.0f
-
-pitch = atan2f(gx, sqrtf(gy*gy + gz*gz)) * (180.0f / M_PI)
-roll  = atan2f(gy, gz)                    * (180.0f / M_PI)
-```
-
-**Why these formulas:**
-- `pitch` measures forward/backward tilt (nose up/down if sensor on chest)
-- `roll` measures sideways tilt (shoulder drop left/right)
-- `atan2f` handles all quadrants correctly including upside-down
-- Denominator `sqrtf(gy*gy + gz*gz)` gives the magnitude in the non-pitch plane
-
-**EMA filter:**
-```c
-static float s_prev_pitch = 0.0f;
-static float s_prev_roll  = 0.0f;
-
-// Apply after computing raw pitch/roll from atan2:
-filtered_pitch = LPF_ALPHA * raw_pitch + (1.0f - LPF_ALPHA) * s_prev_pitch;
-filtered_roll  = LPF_ALPHA * raw_roll  + (1.0f - LPF_ALPHA) * s_prev_roll;
-s_prev_pitch   = filtered_pitch;
-s_prev_roll    = filtered_roll;
-```
-
-**mpu6050_reset_filter():**
-```c
-void mpu6050_reset_filter(void) {
-    s_prev_pitch = 0.0f;
-    s_prev_roll  = 0.0f;
-}
-```
-
-**Full mpu6050_read_angles():**
-```c
-esp_err_t mpu6050_read_angles(float *pitch, float *roll) {
-    uint8_t buf[6];
-    esp_err_t ret = mpu6050_read_regs(MPU_REG_ACCEL_XOUT_H, buf, 6);
-    if (ret != ESP_OK) return ret;
-
-    int16_t ax_raw = (int16_t)((buf[0] << 8) | buf[1]);
-    int16_t ay_raw = (int16_t)((buf[2] << 8) | buf[3]);
-    int16_t az_raw = (int16_t)((buf[4] << 8) | buf[5]);
-
-    float gx = ax_raw / MPU_ACCEL_SENSITIVITY;
-    float gy = ay_raw / MPU_ACCEL_SENSITIVITY;
-    float gz = az_raw / MPU_ACCEL_SENSITIVITY;
-
-    float raw_pitch = atan2f(gx, sqrtf(gy * gy + gz * gz)) * (180.0f / M_PI);
-    float raw_roll  = atan2f(gy, gz) * (180.0f / M_PI);
-
-    float fp = LPF_ALPHA * raw_pitch + (1.0f - LPF_ALPHA) * s_prev_pitch;
-    float fr = LPF_ALPHA * raw_roll  + (1.0f - LPF_ALPHA) * s_prev_roll;
-    s_prev_pitch = fp;
-    s_prev_roll  = fr;
-
-    *pitch = fp;
-    *roll  = fr;
-    return ESP_OK;
-}
-```
-
-#### Step 2.3 — Update main.c
-Replace `read_raw` call with `read_angles`. Print degrees with 2 decimal places.
-
-```c
-float pitch, roll;
-ret = mpu6050_read_angles(&pitch, &roll);
-if (ret == ESP_OK) {
-    ESP_LOGI(TAG, "pitch=%7.2f  roll=%7.2f", pitch, roll);
-}
-```
-
-### Expected serial output
-```
-I (517)  MAIN:    pitch=  -1.23  roll=   0.87
-I (618)  MAIN:    pitch=  -1.21  roll=   0.89
-I (719)  MAIN:    pitch= -15.44  roll=   1.02   ← tilted forward
-I (820)  MAIN:    pitch= -12.87  roll=   0.94   ← filter smoothing recovery
-I (921)  MAIN:    pitch=  -1.19  roll=   0.92   ← returned to flat
-```
-
-### Phase 2 pass criteria — ALL must be true
-
-- [ ] Build succeeds with zero errors
-- [ ] Serial shows `pitch` and `roll` in degrees
-- [ ] At rest on flat surface: both values within ±2° of each other across 10 readings
-- [ ] Tilting sensor forward by ~30°: pitch changes by at least 20° from baseline
-- [ ] Tilting sensor sideways by ~30°: roll changes by at least 20° from baseline
-- [ ] After returning to flat: values return to original within ±2° within 3 seconds
-- [ ] Tapping the desk near the sensor does not produce a >2° spike that persists for >1 second
-- [ ] No floating point NaN or Inf values in 60 seconds
-
-### Understanding filter tuning
-The `LPF_ALPHA` value in config.h controls the trade-off:
-
-```
-LPF_ALPHA = 0.05   → Very smooth. Slow to respond. Takes ~20 samples to settle.
-LPF_ALPHA = 0.15   → Good default. Balances smoothness and responsiveness.
-LPF_ALPHA = 0.30   → Responsive. More vibration visible but quick angle tracking.
-LPF_ALPHA = 1.00   → No filter at all. Raw values.
-```
-
-If the filter feels too slow at 0.15 (angles lag behind real movement), increase to 0.20. If desk vibration is causing visible noise, decrease to 0.10. Decide this in Phase 2 before the state machine is built.
-
----
-
-## Phase 3 — I2S Driver & Speaker Output
-
-### Objective
-Confirm the MAX98357A amplifier and speaker are wired correctly and that the ESP32 can output audio via I2S. Validate with a programmatically generated test tone — no WAV files yet.
-
-### Why this phase exists
-Audio is the only user-visible output of this device. If it doesn't work, the product doesn't work. Validating the audio path completely before integrating it into the state machine prevents a class of bugs where you don't know if silence is "working correctly" or "completely broken".
-
-### Files touched in this phase
-
-| File | Action | Notes |
-|---|---|---|
-| `src/main/config.h` | Modify | Add all I2S and audio constants |
-| `src/main/audio.h` | Create | Declare `audio_init`, `audio_play_tone`, `tone_t`, `audio_cmd_e` |
-| `src/main/audio.c` | Create | I2S init, sine wave generator, tone player |
-| `src/main/main.c` | Modify | Call `audio_init()`, play test tone at boot, then continue IMU loop |
-| `src/main/CMakeLists.txt` | Modify | Add `audio.c` to SRCS |
-
-### What to build — step by step
-
-#### Step 3.1 — Add I2S and audio constants to config.h
-```c
-// I2S (MAX98357A)
-#define I2S_PORT_NUM            I2S_NUM_0
-#define I2S_BCLK_IO             26
-#define I2S_WS_IO               25
-#define I2S_DOUT_IO             27
-#define I2S_SAMPLE_RATE_HZ      44100
-#define I2S_BITS_PER_SAMPLE     16
-#define I2S_DMA_BUF_COUNT       8
-#define I2S_DMA_BUF_LEN_SMPLS  512
-
-// Audio volumes
-#define VOL_WARNING             0.35f
-#define VOL_BAD                 0.80f
-#define VOL_CHIME               0.55f
-#define VOL_VOICE               0.90f
-#define VOL_BOOT                0.50f
-#define TONE_FADE_MS            10
-```
-
-#### Step 3.2 — audio.h — define types and declare API
+**New file: `src/main/haptic.h`**
 ```c
 #pragma once
-#include <stdint.h>
 #include "esp_err.h"
+#include <stdint.h>
 
-typedef struct {
-    uint16_t freq_hz;
-    uint16_t dur_ms;
-    float    volume;
-    uint16_t gap_ms;
-} tone_t;
-
-typedef enum {
-    AUDIO_CMD_BOOT_READY,
-    AUDIO_CMD_CAL_PROMPT,
-    AUDIO_CMD_CAL_SUCCESS,
-    AUDIO_CMD_CAL_FAIL,
-    AUDIO_CMD_WARN_BEEP,
-    AUDIO_CMD_BAD_ALERT,
-    AUDIO_CMD_VOICE_CLIP,
-    AUDIO_CMD_REWARD_CHIME,
-    AUDIO_CMD_CORRECTION_CONFIRM,
-    AUDIO_CMD_STOP,
-} audio_cmd_e;
-
-typedef struct {
-    audio_cmd_e type;
-} audio_cmd_t;
-
-esp_err_t audio_init(void);
-void audio_play_tone(uint16_t freq_hz, uint16_t dur_ms, float volume);
-void audio_play_sequence(const tone_t *tones, uint8_t count);
-void audio_play_wav(const uint8_t *data, uint32_t len);
-void task_audio(void *arg);
+esp_err_t haptic_init(void);
+void      haptic_play(uint8_t waveform_id);
 ```
 
-#### Step 3.3 — audio.c — I2S init and tone generator
-**audio_init()** must:
-1. Populate `i2s_config_t` — mode master TX, sample rate, bits, mono, DMA buf count/len
-2. Populate `i2s_pin_config_t` — BCLK, WS, data out, data in unused (-1)
-3. Call `i2s_driver_install(I2S_PORT_NUM, &i2s_config, 0, NULL)`
-4. Call `i2s_set_pin(I2S_PORT_NUM, &pin_config)`
-5. Log success, return ESP_OK
-
-**audio_play_tone()** — must follow the sine generation algorithm from CLAUDE.md exactly, including the fade envelope. Key points:
-- Buffer size = `I2S_DMA_BUF_LEN_SMPLS` int16 samples
-- Write chunks in a loop using `i2s_write()`
-- Compute `t = (float)(global_sample_index) / I2S_SAMPLE_RATE_HZ` for correct phase
-- Apply fade: ramp in first `TONE_FADE_MS` ms, ramp out last `TONE_FADE_MS` ms
-
-**audio_play_sequence():**
+**`src/main/audio.h` — add to `audio_cmd_e`:**
 ```c
-void audio_play_sequence(const tone_t *tones, uint8_t count) {
-    for (uint8_t i = 0; i < count; i++) {
-        audio_play_tone(tones[i].freq_hz, tones[i].dur_ms, tones[i].volume);
-        if (tones[i].gap_ms > 0) {
-            vTaskDelay(pdMS_TO_TICKS(tones[i].gap_ms));
-        }
-    }
-}
+AUDIO_CMD_HAPTIC_WARN_SINGLE,
+AUDIO_CMD_HAPTIC_WARN_DOUBLE,
+AUDIO_CMD_HAPTIC_BAD_STRONG,
+AUDIO_CMD_HAPTIC_ESCALATION,
+AUDIO_CMD_HAPTIC_CORRECTION,
+AUDIO_CMD_HAPTIC_CAL_PROMPT,
+AUDIO_CMD_HAPTIC_CAL_SUCCESS,
+AUDIO_CMD_HAPTIC_CAL_FAIL,
 ```
 
-> **Phase 3 note:** `task_audio()` and `audio_play_wav()` are declared in the header but only stubbed out in Phase 3. They will be fully implemented in Phase 5. Stub them as empty functions with a log message so the build passes.
-
-#### Step 3.4 — Define all tone sequences in audio.c
-Define these as `static const` arrays at the top of `audio.c`. Do not make them global. Do not put them in the header.
-
+**`src/main/audio.c` — add to `task_audio()` switch:**
 ```c
-static const tone_t TONES_BOOT[]        = {{ 500, 200, VOL_BOOT,  0   }};
-static const tone_t TONES_CAL_PROMPT[]  = {{ 400, 150, VOL_CHIME, 50  },
-                                            { 600, 150, VOL_CHIME, 50  },
-                                            { 800, 150, VOL_CHIME, 0   }};
-static const tone_t TONES_CAL_OK[]      = {{ 523, 100, VOL_CHIME, 30  },
-                                            { 659, 100, VOL_CHIME, 30  },
-                                            { 784, 150, VOL_CHIME, 0   }};
-static const tone_t TONES_CAL_FAIL[]    = {{ 600, 150, VOL_CHIME, 50  },
-                                            { 400, 200, VOL_CHIME, 0   }};
-static const tone_t TONES_WARN[]        = {{ 700, 120, VOL_WARNING, 0  }};
-static const tone_t TONES_BAD[]         = {{ 1000,200, VOL_BAD,  100  },
-                                            { 1000,200, VOL_BAD,  0    }};
-static const tone_t TONES_CONFIRM[]     = {{ 600, 100, VOL_CHIME, 40  },
-                                            { 400, 120, VOL_CHIME, 0   }};
-static const tone_t TONES_REWARD[]      = {{ 784, 100, VOL_CHIME, 30  },
-                                            { 659, 100, VOL_CHIME, 30  },
-                                            { 523, 150, VOL_CHIME, 0   }};
+case AUDIO_CMD_HAPTIC_WARN_SINGLE:
+    haptic_play(HAPTIC_WARN_SINGLE);
+    break;
+case AUDIO_CMD_HAPTIC_WARN_DOUBLE:
+    haptic_play(HAPTIC_WARN_DOUBLE);
+    break;
+case AUDIO_CMD_HAPTIC_BAD_STRONG:
+    haptic_play(HAPTIC_BAD_STRONG);
+    break;
+case AUDIO_CMD_HAPTIC_ESCALATION:
+    haptic_play(HAPTIC_ESCALATION);
+    break;
+case AUDIO_CMD_HAPTIC_CORRECTION:
+    haptic_play(HAPTIC_CORRECTION);
+    break;
 ```
 
-#### Step 3.5 — Update main.c
+**`src/main/posture_fsm.c` — remap alert commands:**
 ```c
-// After mpu6050_init(), before the IMU loop:
-ret = audio_init();
+// WARNING entry (was AUDIO_CMD_WARN_BEEP)
+enqueue_audio(AUDIO_CMD_HAPTIC_WARN_SINGLE);
+
+// BAD entry (was AUDIO_CMD_BAD_ALERT alone)
+enqueue_audio(AUDIO_CMD_HAPTIC_BAD_STRONG);
+enqueue_audio(AUDIO_CMD_BAD_ALERT);
+
+// BAD escalation (was AUDIO_CMD_BAD_ALERT alone)
+enqueue_audio(AUDIO_CMD_HAPTIC_ESCALATION);
+enqueue_audio(AUDIO_CMD_BAD_ALERT);
+
+// Voice loop (was AUDIO_CMD_VOICE_CLIP alone)
+enqueue_audio(AUDIO_CMD_HAPTIC_ESCALATION);
+enqueue_audio(AUDIO_CMD_VOICE_CLIP);
+
+// Correction (was AUDIO_CMD_CORRECTION_CONFIRM alone)
+enqueue_audio(AUDIO_CMD_HAPTIC_CORRECTION);
+enqueue_audio(AUDIO_CMD_CORRECTION_CONFIRM);
+```
+
+**`src/main/CMakeLists.txt` — add haptic.c:**
+```cmake
+idf_component_register(
+    SRCS
+        "main.c"
+        "mpu6050.c"
+        "audio.c"
+        "posture_fsm.c"
+        "haptic.c"
+        "voice/sit_up_wav.c"
+        "voice/thank_you_good_work_wav.c"
+    INCLUDE_DIRS "."
+)
+target_link_libraries(${COMPONENT_LIB} PUBLIC m)
+```
+
+**`src/main/main.c` — add `haptic_init()` to boot sequence:**
+```c
+// After mpu6050_init(), before audio_init()
+ret = haptic_init();
 if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "FATAL: audio init failed");
-    abort();
+    ESP_LOGE(TAG, "Haptic init failed — continuing without haptics");
+    // Non-fatal — device still works without haptics
 }
-
-// Play boot tone
-audio_play_tone(500, 200, VOL_BOOT);
-ESP_LOGI(TAG, "Audio test complete. Starting IMU loop.");
-
-// Then continue the existing IMU angle printing loop from Phase 2
 ```
 
-### Expected behaviour at boot
-1. 200ms medium tone from speaker immediately after startup logs
-2. Followed by continuous angle printing in serial
+### Testing procedure
 
-### Phase 3 pass criteria — ALL must be true
+After flash, work through each alert level deliberately:
 
-- [ ] Build succeeds with zero errors
-- [ ] Audible boot tone plays at every power-on — clean, no pop, no distortion
-- [ ] Tone is clearly audible at normal desk distance (speaker is 3W — it will be loud)
-- [ ] No I2S-related error codes in serial log
-- [ ] IMU angle printing continues normally after tone finishes (no stall)
-- [ ] No audio corruption or glitching — tone sounds like a clean sine wave
-- [ ] Playing the tone does not cause a reboot or watchdog reset
+1. **Single tap test** — hold sensor at 12° for 4 seconds → feel single tap
+2. **BAD entry test** — hold sensor at 25° for 6 seconds → feel strong double tap + hear beep
+3. **Escalation test** — hold BAD for 30 seconds → feel triple pulse + hear voice clip
+4. **Correction test** — return to baseline → feel long reward pulse + hear "thank you"
+5. **Pattern distinction test** — trigger each pattern, verify you can tell them apart by feel alone, eyes closed
 
-### Diagnosing MAX98357A issues
+### Pass criteria — ALL must be true
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| No sound, no errors | DOUT wire disconnected | Check GPIO 27 → DIN on MAX98357A |
-| Loud hum/noise, no tone | VIN at 3.3V instead of 5V | Move VIN wire to 5V pin |
-| Distorted / clipping sound | Volume too high | Reduce sine amplitude multiplier |
-| Rapid clicking, no tone | I2S DMA buffer too small | Increase `I2S_DMA_BUF_LEN_SMPLS` |
-| WS/BCLK error in log | I2S driver config mismatch | Verify mono channel format in i2s_config_t |
+- [ ] DRV2605L detected on I2C bus at boot — `I (...) HAPTIC: DRV2605L initialised — LRA mode`
+- [ ] MPU-6050 still working — no I2C conflict between 0x68 and 0x5A
+- [ ] Single tap on WARNING — clearly felt, not startling
+- [ ] Double tap on WARNING sustained — distinct from single tap
+- [ ] Strong double tap on BAD entry — noticeably stronger than warning taps
+- [ ] Triple pulse on escalation — distinct from BAD entry feel
+- [ ] Long smooth buzz on correction — clearly positive, feels like a reward
+- [ ] All 5 patterns distinguishable by feel alone (eyes closed test)
+- [ ] No I2C errors in 10 minutes of active testing
+- [ ] Audio still works correctly alongside haptics — no interference
+
+### Feature branch
+`feature/haptics` → PR into `release/v2-product`
 
 ---
 
-## Phase 4 — Calibration System
+## Phase 8 — Speaker Swap Validation
+
+### Status: ⏳ Pending
 
 ### Objective
-Implement the full 3-second calibration routine. This creates the posture baseline that every subsequent state machine decision is measured against. By the end of this phase, the device has a complete boot-to-ready flow.
+Confirm a 20mm 0.5W 8Ω speaker provides adequate volume for voice clips before
+the speaker is committed to the PCB layout. This is the cheapest point to discover
+the speaker is too quiet.
 
-### Why this phase exists
-Calibration is the bridge between the sensor subsystem and the decision subsystem. If calibration is wrong, every alert is wrong. Testing it in isolation before the FSM is built means we can verify the baseline values are correct without worrying about state machine bugs at the same time.
+### Entry conditions
+- Phase 7 complete and merged
+- 20mm 8Ω 0.5W speaker purchased (CUI CMS-2009-SMT-TR or equivalent)
 
-### Files touched in this phase
-
-| File | Action | Notes |
+### Hardware needed
+| Item | Where to buy | Approx cost |
 |---|---|---|
-| `src/main/config.h` | Modify | Add all calibration constants |
-| `src/main/posture_fsm.h` | Create | Declare `posture_fsm_set_baseline()` — stub only |
-| `src/main/posture_fsm.c` | Create | Implement `set_baseline()` — stub `task_posture_fsm()` |
-| `src/main/main.c` | Modify | Add `calibrate_baseline()` function, call before loop |
-| `src/main/CMakeLists.txt` | Modify | Add `posture_fsm.c` to SRCS |
+| 20mm 8Ω 0.5W speaker | Digikey / Mouser / CUI | $1–3 |
+| 2× alligator clips or solder | — | — |
 
-### What to build — step by step
+### Wiring
+Disconnect existing 3W 4Ω speaker from MAX98357A output terminals.
+Connect 20mm 8Ω speaker in its place. No firmware changes needed.
 
-#### Step 4.1 — Add calibration constants to config.h
-```c
-// Calibration
-#define CAL_TOTAL_SAMPLES    300
-#define CAL_DISCARD_SAMPLES  50
-#define CAL_VALID_SAMPLES    (CAL_TOTAL_SAMPLES - CAL_DISCARD_SAMPLES)
-#define CAL_MAX_STDDEV_DEG   5.0f
-```
+> **IMPORTANT:** The existing speaker is 4Ω. The replacement is 8Ω. MAX98357A
+> supports both. Output power at 8Ω from 5V supply ≈ 0.5W — correct and safe.
+> Do NOT reconnect the 4Ω speaker after this test — it will not match the V2 PCB.
 
-#### Step 4.2 — Create posture_fsm.h and posture_fsm.c stubs
-`posture_fsm.h` must declare:
-```c
-void posture_fsm_set_baseline(float pitch, float roll);
-void task_posture_fsm(void *arg);  // stub for now
-```
+### Testing procedure
 
-`posture_fsm.c` Phase 4 implementation:
-```c
-static float s_baseline_pitch = 0.0f;
-static float s_baseline_roll  = 0.0f;
+1. Flash unchanged V1 firmware (no code changes for this phase)
+2. Power on — listen to boot tone volume at 0.5 metre distance
+3. Trigger calibration — listen to cal prompt and success tones
+4. Trigger WARNING → BAD → voice clip — evaluate "sit up straight" intelligibility
+5. Trigger correction — evaluate "thank you good work" intelligibility
+6. Test at 1 metre in a quiet room
+7. Test at 1 metre with background noise (fan, music at low volume)
 
-void posture_fsm_set_baseline(float pitch, float roll) {
-    s_baseline_pitch = pitch;
-    s_baseline_roll  = roll;
-    ESP_LOGI(TAG, "Baseline set: pitch=%.2f  roll=%.2f", pitch, roll);
-}
+### Pass criteria — ALL must be true
 
-void task_posture_fsm(void *arg) {
-    // Phase 5 — not implemented yet
-    ESP_LOGI(TAG, "FSM task started — not implemented in Phase 4");
-    vTaskDelete(NULL);
-}
-```
+- [ ] Boot tone audible at 1 metre — no strain to hear it
+- [ ] "Sit up straight" clearly intelligible at 1 metre, quiet room
+- [ ] "Sit up straight" intelligible at 1 metre with light background noise
+- [ ] "Thank you good work" clearly intelligible at 1 metre
+- [ ] Calibration tones (ascending 3-note) audible and distinct
+- [ ] No distortion at maximum volume
+- [ ] No rattling or resonance from the small speaker cone
+- [ ] Volume acceptable for open-plan office use (not embarrassingly loud)
 
-#### Step 4.3 — calibrate_baseline() in main.c
-This is a synchronous function called from `app_main()` before any FreeRTOS tasks are launched. It blocks until calibration succeeds.
+### If volume is insufficient
+- Increase `VOL_VOICE` in `config.h` from 0.90f toward 1.0f
+- If still insufficient at 1.0f, evaluate 28mm speaker as alternative
+- Document the finding and decision in this file before proceeding
 
-```
-Algorithm:
-  mpu6050_reset_filter()
-  audio_play_sequence(TONES_CAL_PROMPT, 3)
-  vTaskDelay(500ms)              ← user hears prompt and sits up
-
-  RETRY:
-  pitch_sum = 0, roll_sum = 0
-  pitch_sq_sum = 0, roll_sq_sum = 0
-
-  for i = 0 to CAL_TOTAL_SAMPLES - 1:
-    mpu6050_read_angles(&p, &r)
-    if i >= CAL_DISCARD_SAMPLES:
-      pitch_sum    += p
-      roll_sum     += r
-      pitch_sq_sum += p * p
-      roll_sq_sum  += r * r
-    vTaskDelay(IMU_SAMPLE_RATE_MS)
-
-  pitch_mean = pitch_sum / CAL_VALID_SAMPLES
-  roll_mean  = roll_sum  / CAL_VALID_SAMPLES
-
-  pitch_var  = (pitch_sq_sum / CAL_VALID_SAMPLES) - (pitch_mean * pitch_mean)
-  roll_var   = (roll_sq_sum  / CAL_VALID_SAMPLES) - (roll_mean  * roll_mean)
-  pitch_std  = sqrtf(fabsf(pitch_var))   ← fabsf guards against floating point rounding to tiny negatives
-  roll_std   = sqrtf(fabsf(roll_var))
-  max_std    = (pitch_std > roll_std) ? pitch_std : roll_std
-
-  ESP_LOGI(TAG, "Cal result: pitch=%.2f roll=%.2f stddev=%.2f", pitch_mean, roll_mean, max_std)
-
-  if max_std > CAL_MAX_STDDEV_DEG:
-    ESP_LOGW(TAG, "Calibration rejected — too much movement (stddev=%.2f)", max_std)
-    audio_play_sequence(TONES_CAL_FAIL, 2)
-    vTaskDelay(1000ms)
-    goto RETRY
-
-  posture_fsm_set_baseline(pitch_mean, roll_mean)
-  audio_play_sequence(TONES_CAL_OK, 3)
-  ESP_LOGI(TAG, "Calibration accepted")
-```
-
-> **Implementation note:** Do not use `goto` in C if you are uncomfortable with it. Wrapping the calibration logic in a `do { ... } while (failed)` loop is equivalent and equally acceptable.
-
-### Expected serial output
-```
-I (312)  MAIN:   Starting calibration — sit upright now
-[cal prompt tones play for ~600ms]
-I (920)  MAIN:   Collecting 300 samples...
-I (3925) MAIN:   Cal result: pitch=-1.87  roll=0.43  stddev=0.38
-I (3926) FSM:    Baseline set: pitch=-1.87  roll=0.43
-[success chime plays]
-I (4200) MAIN:   Calibration accepted. Starting monitoring.
-```
-
-**Failure case:**
-```
-I (920)  MAIN:   Collecting 300 samples...
-I (3925) MAIN:   Cal result: pitch=-8.44  roll=3.21  stddev=6.82
-W (3926) MAIN:   Calibration rejected — too much movement (stddev=6.82)
-[fail tones play]
-I (5000) MAIN:   Retrying calibration — sit still
-[cal prompt tones play again]
-```
-
-### Phase 4 pass criteria — ALL must be true
-
-- [ ] Build succeeds with zero errors
-- [ ] Calibration prompt tones play at boot
-- [ ] Sitting still → success chime → baseline values logged to serial
-- [ ] Deliberately moving sensor during calibration → fail tone → automatic retry
-- [ ] After 3 successful calibrations in a row, logged baseline pitch and roll are within ±1° of each other across runs (given same physical position)
-- [ ] Calibration completes within 4 seconds of the prompt tones finishing
-- [ ] Device does not hang or crash after successful calibration
+### Feature branch
+`feature/speaker-swap` → PR into `release/v2-product`
 
 ---
 
-## Phase 5 — State Machine, FreeRTOS Tasks & Full Integration
+## Phase 9 — Battery System Validation
+
+### Status: ⏳ Pending
 
 ### Objective
-This is the main implementation phase. Wire together all subsystems — IMU reader, posture FSM, and audio player — into a fully concurrent, task-based architecture. By the end of this phase the device is functionally complete.
+Validate the MCP73831 charging circuit + AP2112K LDO + LiPo battery combination
+before they appear on the V2 PCB. Catch any design errors at evaluation board
+stage, not after PCB fabrication.
 
-### Why this phase exists last (before endurance)
-All hardware is validated. All subsystems are individually working. Now we integrate them. Integrating before subsystems are validated is the most common source of unfindable bugs in embedded projects.
+### Entry conditions
+- Phase 8 complete and merged
+- Battery components purchased or evaluation board available
 
-### Files touched in this phase
+### Hardware options (pick one)
 
-| File | Action | Notes |
-|---|---|---|
-| `src/main/config.h` | Modify | Add FreeRTOS, threshold, and timing constants |
-| `src/main/main.c` | Major rewrite | Add mutex, event group, queue, task creation |
-| `src/main/mpu6050.c` | Modify | `read_raw` function can be removed now |
-| `src/main/mpu6050.h` | Modify | Remove `read_raw` declaration |
-| `src/main/posture_fsm.c` | Major build | Full state machine implementation |
-| `src/main/audio.c` | Complete | Full `task_audio()` and `audio_play_wav()` |
-| `src/main/voice/sit_up.wav` | Add | Voice clip file (see preparation below) |
-| `src/main/CMakeLists.txt` | Modify | Add `EMBED_FILES voice/sit_up.wav` |
+**Option A (recommended) — Adafruit LiPo charger breakout:**
+- Adafruit Micro LiPo charger #1904 (MCP73831 based)
+- 350mAh LiPo with JST-PH connector
+- AP2112K-3.3 SOT-23-5 breakout (available on eBay/AliExpress)
+- Validates charging behaviour and LDO stability without custom PCB
 
-### Voice clip preparation (do this before writing any Phase 5 code)
-```bash
-# You need: sox (install via brew on mac, apt on linux)
-# Record or source a short "Sit up straight" clip, then convert:
-sox input.wav -r 16000 -c 1 -b 16 src/main/voice/sit_up.wav
+**Option B — Small test PCB:**
+- Design a minimal test PCB: MCP73831 + AP2112K + USB-C + JST + caps
+- Order 5 units from JLCPCB (~$15 total)
+- More rigorous, closer to final design
 
-# Verify the output:
-soxi src/main/voice/sit_up.wav
-# Should show: Sample Rate: 16000, Channels: 1, Bit Depth: 16
-# File size should be under 100KB (2 seconds = ~64KB)
-```
+### What to build in firmware
 
-### What to build — step by step
+**New file: `src/main/power.c`**
 
-#### Step 5.1 — Add remaining constants to config.h
 ```c
-// Posture thresholds
-#define WARN_THRESH_DEG        10.0f
-#define BAD_THRESH_DEG         20.0f
-#define JUMP_FILTER_DEG        60.0f
+#include "config.h"
+#include "esp_log.h"
+#include "esp_adc/adc_oneshot.h"
+#include "power.h"
+#include "audio.h"
 
-// State machine timings
-#define WARN_GRACE_MS          3000
-#define BAD_GRACE_MS           5000
-#define RESET_COOLDOWN_MS      2000
-#define REPEAT_ALERT_MS        30000
-#define ESCALATION_CAP         3
-#define GOOD_STREAK_REWARD_MS  300000
+static const char *TAG = "POWER";
+static adc_oneshot_unit_handle_t s_adc_handle;
 
-// FreeRTOS configuration
-#define AUDIO_QUEUE_DEPTH      5
-#define TASK_STACK_IMU         4096
-#define TASK_STACK_FSM         4096
-#define TASK_STACK_AUDIO       8192
-#define TASK_PRIO_IMU          5
-#define TASK_PRIO_FSM          4
-#define TASK_PRIO_AUDIO        3
-#define TASK_CORE_IMU          0
-#define TASK_CORE_FSM          0
-#define TASK_CORE_AUDIO        1
-#define MUTEX_TIMEOUT_MS       5
-```
+esp_err_t power_init(void)
+{
+    adc_oneshot_unit_init_cfg_t cfg = {
+        .unit_id = ADC_UNIT_1,
+    };
+    esp_err_t ret = adc_oneshot_new_unit(&cfg, &s_adc_handle);
+    if (ret != ESP_OK) return ret;
 
-#### Step 5.2 — Global shared state in main.c
+    adc_oneshot_chan_cfg_t chan_cfg = {
+        .bitwidth = ADC_BITWIDTH_12,
+        .atten    = ADC_ATTEN_DB_12,
+    };
+    return adc_oneshot_config_channel(s_adc_handle, VBAT_SENSE_CHANNEL, &chan_cfg);
+}
 
-Declare and define these at the top of main.c:
-```c
-// Shared IMU data
-typedef struct {
-    float   pitch;
-    float   roll;
-    int64_t timestamp_us;
-} imu_data_t;
+float power_read_battery_voltage(void)
+{
+    int raw = 0;
+    adc_oneshot_read(s_adc_handle, VBAT_SENSE_CHANNEL, &raw);
+    float adc_v = (raw / 4095.0f) * 3.3f;
+    return adc_v * VBAT_DIVIDER_RATIO;
+}
 
-imu_data_t        g_imu_data   = {0};
-SemaphoreHandle_t g_imu_mutex  = NULL;
-EventGroupHandle_t g_evt_group = NULL;
-QueueHandle_t     g_audio_queue = NULL;
+void power_check_battery(void)
+{
+    float v = power_read_battery_voltage();
+    ESP_LOGI(TAG, "Battery: %.2fV", v);
 
-#define EVT_IMU_DATA_READY   (1 << 0)
-```
-
-Extern these in `posture_fsm.h` and `audio.h` so those files can use them:
-```c
-// posture_fsm.h
-extern imu_data_t        g_imu_data;
-extern SemaphoreHandle_t g_imu_mutex;
-extern EventGroupHandle_t g_evt_group;
-extern QueueHandle_t     g_audio_queue;
-#define EVT_IMU_DATA_READY (1 << 0)
-```
-
-#### Step 5.3 — Task A — IMU Reader (in main.c or its own file)
-```c
-static void task_read_imu(void *arg) {
-    static uint8_t consecutive_fail = 0;
-    float pitch, roll;
-
-    for (;;) {
-        esp_err_t ret = mpu6050_read_angles(&pitch, &roll);
-
-        if (ret != ESP_OK) {
-            consecutive_fail++;
-            ESP_LOGW(TAG, "IMU read fail #%d", consecutive_fail);
-            if (consecutive_fail >= 3) {
-                ESP_LOGE(TAG, "3 consecutive IMU failures — restarting");
-                esp_restart();
-            }
-        } else {
-            consecutive_fail = 0;
-
-            if (xSemaphoreTake(g_imu_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-                g_imu_data.pitch        = pitch;
-                g_imu_data.roll         = roll;
-                g_imu_data.timestamp_us = esp_timer_get_time();
-                xSemaphoreGive(g_imu_mutex);
-                xEventGroupSetBits(g_evt_group, EVT_IMU_DATA_READY);
-            } else {
-                ESP_LOGW(TAG, "IMU mutex timeout — sample skipped");
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(IMU_SAMPLE_RATE_MS));
+    if (v < LOW_BATTERY_CUTOFF_V) {
+        ESP_LOGE(TAG, "Battery critical — entering deep sleep");
+        audio_cmd_t cmd = { .type = AUDIO_CMD_BOOT_READY };  // repurpose as shutdown tone
+        xQueueSend(g_audio_queue, &cmd, 0);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        esp_deep_sleep_start();
+    } else if (v < LOW_BATTERY_WARN_V) {
+        ESP_LOGW(TAG, "Battery low");
+        // Enqueue low battery beep — add AUDIO_CMD_LOW_BATTERY to enum
     }
 }
 ```
 
-#### Step 5.4 — Task B — Posture FSM (in posture_fsm.c)
-Full state machine. The structure is:
-
+**`config.h` additions:**
 ```c
-typedef enum {
-    STATE_GOOD,
-    STATE_WARNING,
-    STATE_BAD,
-    STATE_RESET,
-} posture_state_t;
-
-// Static internal state (not exposed in header)
-static posture_state_t s_state           = STATE_GOOD;
-static float           s_baseline_pitch  = 0.0f;
-static float           s_baseline_roll   = 0.0f;
-static int64_t         s_warn_start_ms   = 0;
-static int64_t         s_bad_start_ms    = 0;
-static int64_t         s_reset_start_ms  = 0;
-static int64_t         s_good_streak_ms  = 0;
-static int64_t         s_last_alert_ms   = 0;
-static uint8_t         s_escalation      = 0;
-static bool            s_warn_fired      = false;
+#define VBAT_SENSE_CHANNEL      ADC_CHANNEL_6   // GPIO34 = ADC1 channel 6
+#define VBAT_DIVIDER_RATIO      2.0f
+#define LOW_BATTERY_WARN_V      3.5f
+#define LOW_BATTERY_CUTOFF_V    3.3f
+#define BATTERY_CHECK_INTERVAL_MS  60000
 ```
 
-**FSM task loop structure:**
-```
-for (;;):
-  1. xEventGroupWaitBits(g_evt_group, EVT_IMU_DATA_READY, pdTRUE, pdFALSE, portMAX_DELAY)
+### Testing procedure
 
-  2. Take mutex → copy g_imu_data to local snapshot → give mutex
+1. Connect LiPo charger breakout to USB-C — verify STAT LED shows charging
+2. Measure LiPo voltage with multimeter while charging — confirm rises to 4.2V
+3. Disconnect USB — confirm LDO still outputs 3.3V from LiPo
+4. Run firmware with `power_check_battery()` logging every 60s
+5. Let LiPo discharge to 3.5V — confirm warning fires
+6. Let discharge to 3.3V — confirm deep sleep triggers
+7. Charge back to full — confirm device wakes normally on reconnect
+8. Time the discharge: run full firmware (IMU + FSM + occasional audio + haptic) — measure hours to 3.3V cutoff
 
-  3. delta = max(|snapshot.pitch - s_baseline_pitch|,
-                 |snapshot.roll  - s_baseline_roll|)
+### Pass criteria — ALL must be true
 
-  4. if delta > JUMP_FILTER_DEG → continue (discard violent movement sample)
+- [ ] LiPo charges via USB-C at ~100mA (verify with multimeter or USB meter)
+- [ ] STAT LED: on while charging, off when done
+- [ ] 3.3V stable on LDO output from 4.2V → 3.4V LiPo input
+- [ ] Low battery warning fires correctly at 3.5V
+- [ ] Deep sleep triggers at 3.3V cutoff — device does not crash before this
+- [ ] Device wakes correctly on USB reconnect after deep sleep
+- [ ] Full runtime (active firmware, no aggressive audio): ≥ 10 hours to cutoff
+- [ ] No brownout or voltage glitch during audio playback (most current-intensive moment)
 
-  5. now_ms = esp_timer_get_time() / 1000
-
-  6. switch (s_state):
-       case STATE_GOOD:
-         if streak timer not started → s_good_streak_ms = now_ms
-         if (now_ms - s_good_streak_ms) >= GOOD_STREAK_REWARD_MS:
-           enqueue AUDIO_CMD_REWARD_CHIME
-           s_good_streak_ms = now_ms  ← reset streak timer
-         if delta > WARN_THRESH_DEG:
-           s_warn_start_ms = now_ms
-           s_state = check_warn_transition(delta, now_ms)
-         break
-
-       case STATE_WARNING:
-         s_good_streak_ms = 0  ← reset streak
-         if delta < WARN_THRESH_DEG:
-           → transition to GOOD
-           s_warn_fired = false
-           s_state = STATE_GOOD
-           break
-         if delta > BAD_THRESH_DEG:
-           if (now_ms - s_bad_start_ms == 0) s_bad_start_ms = now_ms
-           if (now_ms - s_bad_start_ms) >= BAD_GRACE_MS:
-             → transition to BAD
-             enqueue AUDIO_CMD_BAD_ALERT
-             s_last_alert_ms = now_ms
-             s_escalation = 1
-             s_state = STATE_BAD
-         else if (now_ms - s_warn_start_ms) >= WARN_GRACE_MS && !s_warn_fired:
-           enqueue AUDIO_CMD_WARN_BEEP
-           s_warn_fired = true
-         break
-
-       case STATE_BAD:
-         s_good_streak_ms = 0  ← reset streak
-         if delta < WARN_THRESH_DEG:
-           → transition to RESET
-           enqueue AUDIO_CMD_CORRECTION_CONFIRM
-           s_reset_start_ms = now_ms
-           s_state = STATE_RESET
-           break
-         if (now_ms - s_last_alert_ms) >= REPEAT_ALERT_MS:
-           if s_escalation < ESCALATION_CAP:
-             if s_escalation >= 2:
-               enqueue AUDIO_CMD_VOICE_CLIP
-             else:
-               enqueue AUDIO_CMD_BAD_ALERT
-             s_escalation++
-             s_last_alert_ms = now_ms
-         break
-
-       case STATE_RESET:
-         if delta > WARN_THRESH_DEG:
-           → back to WARNING (posture slipped during cooldown)
-           s_warn_start_ms = now_ms
-           s_state = STATE_WARNING
-           break
-         if (now_ms - s_reset_start_ms) >= RESET_COOLDOWN_MS:
-           → transition to GOOD
-           s_good_streak_ms = now_ms
-           s_escalation = 0
-           s_warn_fired = false
-           s_state = STATE_GOOD
-         break
-
-  7. log state if it changed from previous iteration
-```
-
-#### Step 5.5 — Task C — Audio Player (in audio.c)
-Complete `task_audio()` and `audio_play_wav()`:
-
-```c
-// WAV file symbols from embedded flash
-extern const uint8_t sit_up_wav_start[] asm("_binary_sit_up_wav_start");
-extern const uint8_t sit_up_wav_end[]   asm("_binary_sit_up_wav_end");
-
-void audio_play_wav(const uint8_t *data, uint32_t len) {
-    if (len < 44) return;  // sanity check — WAV header is 44 bytes
-    const uint8_t *pcm = data + 44;
-    uint32_t pcm_len = len - 44;
-    size_t written;
-    // Write in chunks to allow interruption check
-    uint32_t offset = 0;
-    while (offset < pcm_len) {
-        uint32_t chunk = pcm_len - offset;
-        if (chunk > I2S_DMA_BUF_LEN_SMPLS * 2) chunk = I2S_DMA_BUF_LEN_SMPLS * 2;
-        i2s_write(I2S_PORT_NUM, pcm + offset, chunk, &written, pdMS_TO_TICKS(200));
-        offset += written;
-    }
-}
-
-void task_audio(void *arg) {
-    audio_cmd_t cmd;
-    for (;;) {
-        if (xQueueReceive(g_audio_queue, &cmd, portMAX_DELAY) == pdTRUE) {
-            switch (cmd.type) {
-                case AUDIO_CMD_BOOT_READY:
-                    audio_play_sequence(TONES_BOOT, 1); break;
-                case AUDIO_CMD_CAL_PROMPT:
-                    audio_play_sequence(TONES_CAL_PROMPT, 3); break;
-                case AUDIO_CMD_CAL_SUCCESS:
-                    audio_play_sequence(TONES_CAL_OK, 3); break;
-                case AUDIO_CMD_CAL_FAIL:
-                    audio_play_sequence(TONES_CAL_FAIL, 2); break;
-                case AUDIO_CMD_WARN_BEEP:
-                    audio_play_sequence(TONES_WARN, 1); break;
-                case AUDIO_CMD_BAD_ALERT:
-                    audio_play_sequence(TONES_BAD, 2); break;
-                case AUDIO_CMD_VOICE_CLIP: {
-                    uint32_t len = sit_up_wav_end - sit_up_wav_start;
-                    audio_play_wav(sit_up_wav_start, len);
-                    break;
-                }
-                case AUDIO_CMD_REWARD_CHIME:
-                    audio_play_sequence(TONES_REWARD, 3); break;
-                case AUDIO_CMD_CORRECTION_CONFIRM:
-                    audio_play_sequence(TONES_CONFIRM, 2); break;
-                case AUDIO_CMD_STOP:
-                    break;  // currently playing tone will finish its chunk
-                default:
-                    ESP_LOGW(TAG, "Unknown audio command: %d", cmd.type);
-            }
-        }
-    }
-}
-```
-
-#### Step 5.6 — Update app_main()
-Remove the Phase 2–4 print loop. Replace with full task launch:
-
-```c
-void app_main(void) {
-    // 1. NVS
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        nvs_flash_erase();
-        ret = nvs_flash_init();
-    }
-    if (ret != ESP_OK) ESP_LOGW(TAG, "NVS init failed — continuing without NVS");
-
-    // 2. Hardware init
-    ret = mpu6050_init();
-    if (ret != ESP_OK) { ESP_LOGE(TAG, "FATAL: MPU-6050"); abort(); }
-
-    ret = audio_init();
-    if (ret != ESP_OK) { ESP_LOGE(TAG, "FATAL: audio"); abort(); }
-
-    // 3. Boot tone
-    audio_play_tone(500, 200, VOL_BOOT);
-
-    // 4. Calibration (blocks until accepted)
-    calibrate_baseline();
-
-    // 5. FreeRTOS primitives
-    g_imu_mutex   = xSemaphoreCreateMutex();
-    g_evt_group   = xEventGroupCreate();
-    g_audio_queue = xQueueCreate(AUDIO_QUEUE_DEPTH, sizeof(audio_cmd_t));
-
-    configASSERT(g_imu_mutex   != NULL);
-    configASSERT(g_evt_group   != NULL);
-    configASSERT(g_audio_queue != NULL);
-
-    // 6. Launch tasks
-    BaseType_t r;
-    r = xTaskCreatePinnedToCore(task_read_imu,    "imu",   TASK_STACK_IMU,   NULL, TASK_PRIO_IMU,   NULL, TASK_CORE_IMU);
-    configASSERT(r == pdPASS);
-    r = xTaskCreatePinnedToCore(task_posture_fsm, "fsm",   TASK_STACK_FSM,   NULL, TASK_PRIO_FSM,   NULL, TASK_CORE_FSM);
-    configASSERT(r == pdPASS);
-    r = xTaskCreatePinnedToCore(task_audio,       "audio", TASK_STACK_AUDIO, NULL, TASK_PRIO_AUDIO, NULL, TASK_CORE_AUDIO);
-    configASSERT(r == pdPASS);
-
-    ESP_LOGI(TAG, "All tasks launched. Monitoring active.");
-    // app_main returns — idle task takes over
-}
-```
-
-### Integration testing sequence (do this before declaring Phase 5 complete)
-
-Test each behaviour manually in order:
-
-1. **Boot sequence:** Power on → boot tone → cal prompt → sit still → success chime → silence
-2. **Warning trigger:** Tilt sensor >10° from baseline, hold for 4 seconds → single soft beep
-3. **Return to good:** Straighten up after warning → silence (no confirm tone — only BAD recovery plays confirm)
-4. **Bad trigger:** Tilt sensor >20° from baseline, hold for 6 seconds → double loud beep
-5. **Correction confirm:** Straighten up from BAD → 2-note descending confirm tone
-6. **Escalation:** Hold in BAD for 35+ seconds → second double beep. Hold for 65+ seconds → voice clip plays
-7. **Escalation cap:** Hold bad for 3+ minutes → after 3 escalations, system goes silent
-8. **Re-arm after cap:** Straighten up, hold GOOD for 60s, slump again → alerts re-arm
-9. **Reward chime:** Hold good posture for 5+ minutes → ascending chime (can reduce `GOOD_STREAK_REWARD_MS` to 30000 for testing)
-
-### Phase 5 pass criteria — ALL must be true
-
-- [ ] Build succeeds with zero errors
-- [ ] All 9 integration tests pass
-- [ ] No false positive alerts occur during simulated typing (tap desk rapidly for 30 seconds)
-- [ ] Serial log shows clean state transitions with correct state names
-- [ ] Voice clip plays cleanly (no distortion, correct words audible)
-- [ ] Escalation cap is respected — system silences after `ESCALATION_CAP` cycles
-- [ ] Alerts re-arm after posture correction and another bad posture event
-- [ ] No crashes, reboots, or stuck states during 10 minutes of active testing
+### Feature branch
+`feature/power-system` → PR into `release/v2-product`
 
 ---
 
-## Phase 6 — Endurance & Stability Testing ✅ COMPLETE
+## Phase 10 — PCB V2 Design & Fabrication
+
+### Status: ⏳ Pending
 
 ### Objective
-Run the complete system continuously for a long session under realistic conditions. Verify there are no memory leaks, task starvation, audio glitches, or false positive/negative issues that only appear over time.
+Design and fabricate the first custom PCB integrating all validated V2 components.
+This is the highest-risk phase — layout errors cost money and 2–3 weeks of turnaround.
+Every component must be validated in Phase 7–9 before being placed on this PCB.
 
-### Why this phase exists
-Embedded systems frequently have bugs that only appear after extended runtime. Stack overflows triggered by specific call paths. FreeRTOS heap fragmentation over many queue send/receive cycles. I2S DMA issues after thousands of write operations. This phase finds them.
+### Entry conditions
+- Phases 7, 8, and 9 complete and merged
+- All waveform indices confirmed satisfactory (Phase 7)
+- Speaker volume confirmed adequate (Phase 8)
+- Battery circuit confirmed stable (Phase 9)
+- KiCad or EasyEDA installed
 
-### No new code in this phase
-Phase 6 is testing only. If bugs are found, fix them by returning to the relevant earlier phase.
+### Schematic checklist (complete before layout)
 
-### Test procedure
+- [ ] ESP32-S3-MINI-1U with all bypass caps placed
+- [ ] Antenna keep-out zone marked as no-copper zone (3mm below module edge)
+- [ ] MPU-6050: 4.7kΩ pull-ups on SDA/SCL, 100nF bypass on VCC, AD0 to GND
+- [ ] DRV2605L: correct WSON-12 footprint, LRA pads broken out, EN tied HIGH
+- [ ] MAX98357A: correct WLP-16 footprint, SD_MODE to GPIO48, GAIN floating
+- [ ] MCP73831: PROG resistor 10kΩ (100mA charge), STAT pin to LED via 1kΩ
+- [ ] AP2112K: bulk caps 10µF in + out, 100nF bypass
+- [ ] USB-C: both CC pins to GND via 5.1kΩ, VBUS to polyfuse to MCP73831
+- [ ] USB-C D+/D- directly to ESP32-S3 GPIO19/20
+- [ ] JST-PH 2-pin battery connector with correct pinout (+ on pin 1)
+- [ ] Both buttons with 10kΩ pull-up to 3.3V, 100nF debounce cap to GND
+- [ ] VBAT sense: 100kΩ–100kΩ divider from LiPo+ to GPIO34 to GND
+- [ ] Charge LED: green LED + 1kΩ from STAT to 3.3V
 
-#### Session A — 60-minute desk simulation (minimum)
-Run the device for a full 60 minutes while doing normal desk work.
+### Layout checklist (complete before Gerber export)
 
-Structured routine:
-- Minutes 0–5: Good posture (calibrate, let device settle)
-- Minutes 5–7: Slump forward (trigger WARNING, then BAD)
-- Minutes 7–10: Good posture (verify correction confirm, re-arm)
-- Minutes 10–40: Normal work — natural mix of postures
-- Minutes 40–45: Deliberate extended bad posture (verify escalation sequence)
-- Minutes 45–50: Good posture (reset escalation counter)
-- Minutes 50–60: Monitoring only — verify reward chime fires at 5-minute mark
+- [ ] Board dimensions ≤ 50×38mm
+- [ ] Antenna keep-out enforced — no copper within 3mm of antenna area
+- [ ] All bypass caps within 1mm of their IC VCC pin
+- [ ] I2S traces (BCLK, WS, DOUT) short and parallel, same layer
+- [ ] USB D+/D- matched length, routed as differential pair
+- [ ] Speaker OUT+ / OUT- kept together, away from I2C/I2S signal lines
+- [ ] Power traces ≥ 0.5mm (3.3V rail), ≥ 1.0mm (battery, speaker)
+- [ ] LRA pads on bottom side with exposed copper for motor adhesive mount
+- [ ] Battery connector on edge, accessible without opening enclosure
+- [ ] USB-C on opposite edge to battery
+- [ ] Buttons on front face (long dimension edge)
+- [ ] Speaker pads on top face (edge-mount or through-hole)
+- [ ] DRC passes with zero errors
 
-#### Session B — Stack watermark check
-Add this code temporarily in `task_read_imu()`, run for 5 minutes, then check the serial output:
+### JLCPCB order checklist
 
-```c
-// Add at the bottom of the IMU task loop, inside a 30-second timer:
-ESP_LOGI(TAG, "Stack HWM — IMU:%d FSM:%d AUDIO:%d",
-    uxTaskGetStackHighWaterMark(NULL),          // current task
-    // Pass task handles from app_main to check FSM and AUDIO
-```
+- [ ] Gerber files exported correctly (all layers)
+- [ ] BOM exported in JLCPCB CSV format
+- [ ] CPL (Component Placement List) exported
+- [ ] All SMT components matched to JLCPCB parts library
+- [ ] SMT assembly requested for top side only
+- [ ] Order 5 prototype units (not 10 — there will be a revision)
+- [ ] Specify ENIG surface finish for fine-pitch QFN/WLP pads
+- [ ] Specify 1.6mm board thickness
 
-> Stack high-water mark should be at least 512 bytes above 0 (i.e., stack not within 512 bytes of overflow). If any task is below 512, increase its stack size constant in `config.h`.
+### Post-receipt testing procedure
 
-#### Session C — False positive stress test (10 minutes)
-Simulate conditions that should NOT trigger an alert:
+For each of the 5 PCBs:
 
-| Action | Expected result |
-|---|---|
-| Typing vigorously on keyboard near device | No alert |
-| Moving mouse rapidly | No alert |
-| Turning head side to side (if device on shoulder) | No alert |
-| Reaching for a drink and returning | No alert if <3 seconds |
-| Sneezing or coughing (single movement) | No alert |
-| Standing up and sitting back down quickly | No alert if resolved within grace period |
+1. Visual inspection — all ICs present, no shorts, no bridged pads
+2. Continuity check on power rail — 3.3V and GND not shorted
+3. Connect USB-C — verify 3.3V on LDO output before connecting battery
+4. Connect LiPo — verify system powers on
+5. Flash firmware via USB-C (hold BOOT button on SW1, press RESET)
+6. Verify serial monitor output shows all modules initialised
+7. Run Phase 7 haptic test — all 5 patterns
+8. Run Phase 8 speaker test — voice clips intelligible
+9. Run Phase 9 battery test — charge and discharge cycle
+10. Soak test: run full firmware for 2 hours, monitor for faults
 
-### Phase 6 pass criteria — ALL must be true
+### Pass criteria — ALL must be true
 
-- [ ] Device runs for 60+ minutes without crash, reboot, or stuck state
-- [ ] All correct alerts fire at the correct times during Session A
-- [ ] No false positive alerts during Session C
-- [ ] Stack watermarks all show >512 bytes remaining headroom
-- [ ] Serial log shows no ERROR or FATAL level messages during the full session
-- [ ] Audio quality remains clean throughout — no glitching or distortion creeping in
-- [ ] IMU read failure count stays at 0 throughout the session
-- [ ] Reward chime fires correctly at the 5-minute good-posture mark
+- [ ] All 5 boards power on from USB-C
+- [ ] All 5 boards flash successfully via native USB
+- [ ] Boot log shows: MPU-6050, DRV2605L, MAX98357A all initialised
+- [ ] Haptics working — all 5 waveform patterns fire
+- [ ] Audio working — voice clips and tones play at adequate volume
+- [ ] Battery charges from USB-C — STAT LED indicates correctly
+- [ ] Both buttons respond — SW1 triggers recal, SW2 triggers snooze
+- [ ] Board fits within enclosure dimensions (Phase 11 check)
+- [ ] 2-hour soak test: no crashes, no resets, no stuck states
+- [ ] At least 3 of 5 boards fully pass (accept 2 duds for manufacturing variance)
 
-### Phase 6 known watch-outs
+### Feature branch
+`feature/pcb-v2` → PR into `release/v2-product`
+Commit all KiCad project files, Gerber exports, BOM, and CPL.
 
-| Issue | Sign | Root cause | Fix |
+---
+
+## Phase 11 — Full Integration, Enclosure & Wearable Validation
+
+### Status: ⏳ Pending
+
+### Objective
+A complete wearable device worn for a real work session. PCB inside 3D printed
+shoulder clip, battery connected, all features functional. This is the V2 product.
+
+### Entry conditions
+- Phase 10 complete — at least 3 fully passing PCBs in hand
+- 3D printer available, or Shapeways/JLCPCB 3D printing ordered
+- PETG filament (preferred: flexible enough to clip, rigid enough to hold)
+
+### Enclosure design requirements
+
+**Functional:**
+- PCB slides into recessed pocket — retained without screws if possible (friction fit)
+- Spring clip mechanism — clips onto shirt collar, bra strap, 1–2cm fabric
+- USB-C port accessible from bottom edge without removing from clip
+- Both buttons accessible on front face with short press travel
+- Speaker grille on top face — 5–8 holes, 1mm diameter
+- LRA motor recess on back face — motor contacts body when worn
+
+**Dimensional targets:**
+- Clip opening: 15mm max gap, 5N clip force (firm but not damaging)
+- Overall: 45×38×16mm
+- Pocket for PCB: 47×37×9mm (1mm tolerance each side)
+- Battery slot: behind PCB pocket, 37×27×6mm
+
+**CAD files:**
+- Design in Fusion 360, FreeCAD, or Onshape (all free tier)
+- Export STL for printing
+- Commit STL + source file to `feature/enclosure` branch
+
+### Wearability testing procedure
+
+1. Print 2 enclosure prototypes — check fit with PCB before soldering anything
+2. Assemble one complete unit: PCB + LiPo + enclosure
+3. Clip to shirt collar at left shoulder — sensor mounting orientation
+4. Power on — confirm calibration prompt plays and is audible when worn
+5. Calibrate in sitting position at desk
+6. Work for 4 hours wearing the device:
+   - Normal desk work (typing, reading)
+   - One 30-minute meeting (test snooze button)
+   - Deliberate slouching every 30 minutes to verify alerts fire
+   - Check battery level at end of session
+7. Repeat with 2 different people if possible (sensor position may vary)
+
+### Pass criteria — ALL must be true
+
+- [ ] Device clips securely to shirt — does not fall during normal movement
+- [ ] Calibration completes correctly in shoulder-mounted orientation
+- [ ] WARNING haptic fires correctly during desk work slouch — not during typing
+- [ ] BAD audio fires after sustained poor posture — not from vibration/walking
+- [ ] Snooze button accessible and works during meeting scenario
+- [ ] Voice clip audible while wearing — speaker facing outward is sufficient
+- [ ] Device worn for 4+ hours — no crashes, no false positives from desk vibration
+- [ ] Battery lasts full 4-hour session with >50% charge remaining
+- [ ] Enclosure: no sharp edges, no accidental button presses, clip does not mark clothing
+- [ ] Serial log: clean state transitions, no spurious events throughout session
+
+---
+
+## Phase Summary Table
+
+| Phase | Description | Branch | Status | Hardware |
+|---|---|---|---|---|
+| 7 | Haptic validation — breadboard | `feature/haptics` | ⏳ Next | 📦 Parts ordered |
+| 8 | Speaker swap validation | `feature/speaker-swap` | ⏳ Next | 📦 Parts ordered |
+| 9 | Battery system validation | `feature/power-system` | ⏳ Pending | 📦 Parts ordered |
+| 10 | PCB V2 design + fabrication | `feature/pcb-v2` | ⏳ Pending | 🛒 Order after Phase 9 |
+| 11 | Full integration + enclosure | `feature/enclosure` | ⏳ Pending | 🛒 Order after Phase 10 |
+
+---
+
+## Hardware Shopping List (Phases 7–9)
+
+Order these before starting Phase 7. Most arrive in 2–5 days.
+
+| Item | Source | Est. cost | Needed for |
 |---|---|---|---|
-| Audio stuttering after ~20 minutes | Crackling or skipping | I2S DMA buffer underrun | Increase `I2S_DMA_BUF_COUNT` or audio task stack |
-| Escalation counter not resetting | Device silences permanently after one BAD session | `s_escalation` not cleared in RESET→GOOD | Confirm `s_escalation = 0` in STATE_RESET exit |
-| Reward chime never fires | GOOD streak counter not advancing | `s_good_streak_ms` reset in wrong place | Verify streak counter only resets on state exit |
-| Occasional reboot after ~30 minutes | TWDT timeout | One task blocking too long | Check audio task for any blocking operations without yield |
-| Growing serial log lag | UART tx buffer overflowing | Too many ESP_LOGD messages | Remove or reduce logging level for high-frequency messages |
+| Adafruit DRV2605L breakout #2305 | adafruit.com | $7.95 | Phase 7 |
+| 10mm LRA motor (Adafruit #1201 or Digikey) | adafruit.com / digikey.com | $4.00 | Phase 7 |
+| 20mm 8Ω 0.5W speaker | digikey.com / mouser.com | $2.00 | Phase 8 |
+| Adafruit LiPo charger breakout #1904 | adafruit.com | $6.95 | Phase 9 |
+| 350mAh LiPo with JST-PH #2750 | adafruit.com | $6.95 | Phase 9 |
+| AP2112K-3.3 breakout or bare SOT-23-5 | digikey.com | $1.00 | Phase 9 |
+| **Total** | | **~$30** | Phases 7–9 |
 
 ---
 
-## Phase Completion Checklist
+## Known Risks & Mitigations
 
-Use this as your final verification before considering the MVP done.
-
-```
-Phase 1 — I2C + Raw IMU Data
-  [ ] WHO_AM_I: 0x68 confirmed
-  [ ] Raw ax, ay, az printing and changing with movement
-  [ ] 60 seconds clean, no errors
-
-Phase 2 — Angles + Filter
-  [ ] Pitch and roll in degrees printing correctly
-  [ ] Filter settling within 1s of stillness
-  [ ] No false spikes from desk tapping
-
-Phase 3 — I2S + Audio
-  [ ] Boot tone plays cleanly at power-on
-  [ ] No audio errors in serial log
-  [ ] IMU loop continues after tone
-
-Phase 4 — Calibration
-  [ ] Prompt tones → success chime → baseline logged
-  [ ] Movement during calibration → fail tone → retry
-  [ ] Baseline consistent across repeated calibrations
-
-Phase 5 — Full Integration
-  [ ] All 9 integration tests pass
-  [ ] No false positives from typing simulation
-  [ ] Voice clip audible and clean
-  [ ] Escalation cap respected
-
-Phase 6 — Endurance
-  [ ] 60-minute session clean
-  [ ] Stack watermarks all >512 bytes headroom
-  [ ] No false positives during stress test
-  [ ] Reward chime fires correctly
-```
+| Risk | Phase | Mitigation |
+|---|---|---|
+| I2C address conflict (MPU-6050 + DRV2605L) | 7 | Different addresses: 0x68 vs 0x5A — no conflict, verified in spec |
+| LRA waveforms feel similar / undifferentiated | 7 | Test all 123 indices, document best candidates before committing |
+| 20mm speaker too quiet for voice clips | 8 | Test before PCB order — can switch to 28mm if needed |
+| Brownout during audio playback on LiPo | 9 | AP2112K has 600mA headroom, add 22µF bulk cap on output |
+| ESP32-S3 antenna detuned by PCB copper | 10 | Enforce keep-out in layout — check with BLE range test post-fab |
+| MAX98357A WLP-16 bridged pads (tiny IC) | 10 | Use ENIG finish, inspect under magnification, reflow stencil |
+| Clip spring force too strong / marks clothing | 11 | Print multiple prototypes with varying wall thickness |
+| Sensor calibration offset differs per person | 11 | Calibration routine handles this — test with 2+ people |
 
 ---
 
-*Last updated: 2026-04-25 — Phase 0 complete, Phase 1 next.*
-*Next action: Implement real `mpu6050_init()` and `mpu6050_read_raw()` — begin Phase 1.*
+*Branch: release/v2-product*
+*Created: 2026-04-26*
+*Reference: CLAUDE.md — full architecture and component decisions*
