@@ -223,12 +223,15 @@ hardware/
 ### PCB — 3D Render
 ![PCB V2 3D render](hardware/assets/pcb_v2_3d.png)
 
-### PCB — Top View
-![PCB V2 top view](hardware/assets/pcb_v2_top.png)
+### PCB Layout PDFs
+
+| Layer | PDF |
+|---|---|
+| Top (F.Cu + Silkscreen + Mask) | [pcb_v2_top_layer.pdf](hardware/assets/pcb_v2_top_layer.pdf) |
+| Bottom (B.Cu + Silkscreen + Mask) | [pcb_v2_bottom_layer.pdf](hardware/assets/pcb_v2_bottom_layer.pdf) |
+| Combined (both layers) | [pcb_v2_combined.pdf](hardware/assets/pcb_v2_combined.pdf) |
 
 ### Schematic
-![V2 Schematic](hardware/assets/schematic_v2.png)
-
 > Full schematic PDF: [hardware/schematics/posture_tracker_v2_v2.pdf](hardware/schematics/posture_tracker_v2_v2.pdf)
 
 ---
