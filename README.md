@@ -220,8 +220,8 @@ hardware/
 
 ## Hardware Visuals
 
-### PCB — 3D Render
-![PCB V2 3D render](hardware/assets/pcb_v2_3d.png)
+### PCB — 3D View
+![PCB V2 3D view](hardware/assets/pcb_v2_3d.gif)
 
 ### PCB — Top Layer
 ![PCB V2 top layer](hardware/assets/pcb_v2_top_layer.png)
