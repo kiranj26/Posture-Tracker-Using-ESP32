@@ -1,8 +1,36 @@
 # KiCad auto-save and backup files
 *.kicad_prl
+*.wbk
 *-backups/
 .history/
 ~*.lck
 *.bak
 *.000
 fp-info-cache
+
+# DRC/ERC reports and logs — regenerated on every check run
+DRC.rpt
+ERC.rpt
+report.txt
+*.rpt
+
+# Layer exports and gerber outputs — regenerated from PCB file
+# Canonical copies live in hardware/pcb/v2/gerbers/
+*.pdf
+*.gbrjob
+*-B_Cu.*
+*-F_Cu.*
+*-B_Mask.*
+*-F_Mask.*
+*-B_Paste.*
+*-F_Paste.*
+*-B_Silkscreen.*
+*-F_Silkscreen.*
+*-Edge_Cuts.*
+*-F_Courtyard.*
+*-PTH.drl
+*-NPTH.drl
+gerbers/
+
+# macOS metadata
+.DS_Store

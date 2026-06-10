@@ -25,11 +25,11 @@
 | Full schematic DRC | ✅ Done | 0 errors, 5 warnings (all acceptable) |
 | Schematic critique fixes | ✅ Done | SW3 reset, MPU_INT, HAPTIC_EN+R12, SKRPABE010 buttons, LED2+R13 snooze, C14 VBAT bulk, antenna note |
 | Reddit review fixes | ✅ Done | USB-C B6/B7 cross-connection, C17 VBUS_FUSED bypass cap, U7 ESD protection, C15/C16 decoupling, U1 footprint fixed to ESP32-S3-MINI-1 |
-| PCB layout started | 🔄 In progress | 46 components placed, 148 unconnected pads — routing not yet done |
-| PCB layout complete | ⬜ Not started | |
-| PCB DRC clean | ⬜ Not started | |
-| Gerbers exported | ⬜ Not started | Must regenerate after routing |
-| JLCPCB order placed | ⬜ Not started | |
+| PCB layout started | ✅ Done | 57 components placed |
+| PCB layout complete | ✅ Done | All nets routed — see routing log below |
+| PCB DRC clean | ✅ Done | 0 errors, 0 unconnected, 2 cosmetic silk warnings (2026-06-09) |
+| Gerbers exported | ✅ Done | `hardware/pcb/v2/gerbers/` — 10 Gerbers + 2 drill files + ZIP |
+| JLCPCB order placed | ⬜ Not started | ZIP ready at `hardware/pcb/v2/posture_tracker_v2_gerbers.zip` |
 
 ---
 
@@ -53,6 +53,10 @@
 | 2026-05-03 | Added C16 (1µF, 0402) on DRV2605L VDD | Datasheet recommended local bypass; original design only had 100nF |
 | 2026-05-03 | Added C17 (4.7µF, 0402) on VBUS_FUSED | MCP73831 VDD decoupling — was missing. Reviewer flagged; 4.7µF per MCP73831 datasheet recommendation |
 | 2026-05-03 | USB-C B6/B7 cross-connection per USB-IF spec | Per spec Table 3-1: A6+B7=D+, A7+B6=D- (diagonal). Both cable orientations now work |
+| 2026-06-09 | Trace widths set per IPC-2221 (1oz copper, external layer, 10°C rise) | 0.2mm=745mA, 0.3mm=999mA, 0.4mm=1231mA. VBUS=0.4mm (500mA USB), +3V3=0.3mm, SPK/LRA=0.3mm (~500mA peak), signals=0.2mm |
+| 2026-06-09 | LS1 and M1 switched to Molex PicoBlade 53261-0271 (horizontal, 2-pin) | Better cable orientation for wearable form factor. JST GH replaced with PicoBlade for both speaker and LRA motor connectors |
+| 2026-06-09 | GND strategy: F.Cu fill (solid connection) + B.Cu fill + stitching vias | Solid pad connection chosen over thermal relief — correct for reflow-soldered SMD. Thermal relief is only needed for hand-soldered through-hole. Stitching vias placed to connect F.Cu copper islands to B.Cu plane |
+| 2026-06-09 | Via spec: 0.8mm outer / 0.4mm drill across all vias | JLCPCB standard design rule minimum. Applied uniformly to all 19 vias in design |
 
 ---
 
@@ -318,3 +322,7 @@ Must be downloaded or created manually.
 | 2026-05-02 | Blocks 2–7 complete — ESP32-S3, MPU-6050, DRV2605L, MAX98357A, Buttons+LED, VBAT sense. All 37 footprints assigned. Full ERC: 0 errors, 30 warnings. | Schematic critique fixes |
 | 2026-05-02 | Schematic critique complete — added SW3 (RESET), MPU_INT net, HAPTIC_EN+R12 pull-up, SKRPABE010 button footprints, LED2+R13 snooze indicator, C14 47µF VBAT bulk cap, antenna keep-out note. 42 components, ERC: 0 errors, 30 warnings. | Start PCB layout |
 | 2026-05-03 | Reddit review fixes: fixed USB-C B6/B7 cross-connection (A6+B7=D+, A7+B6=D- per USB-IF spec), added C17 4.7µF on VBUS_FUSED (MCP73831 VDD decoupling), confirmed U7 USBLC6-2SC6 ESD protection, added C15 (10µF U1 VDD33) and C16 (1µF U3 VDD). Fixed U1 footprint from ESP32-S2-MINI-1 → ESP32-S3-MINI-1 (critical — wrong pad count). Deleted premature Gerbers. ERC: 0 errors, 5 warnings. DRC: 4 cosmetic warnings, 148 unconnected pads (routing not done). | PCB routing |
+| 2026-06-09 | PCB routing started. All signal, power, and USB nets routed on F.Cu. HAPTIC_EN and MPU_INT routed via vias through B.Cu. All components unlocked for placement. | Trace width verification |
+| 2026-06-09 | Trace widths fixed to IPC-2221 standard across all 364 segments: VBUS/VBUS_FUSED → 0.4mm, +3V3/VBAT/audio/motor → 0.3mm, signals → 0.2mm. 19 vias updated to 0.8mm/0.4mm (JLCPCB spec). Net classes written to .kicad_pro: HighCurrent, Power, Audio, Motor, USB_Diff, Default. CLAUDE.md Section 18 added with full trace width reference table. | GND copper fill |
+| 2026-06-09 | LS1 and M1 connectors switched to Molex PicoBlade 53261-0271 horizontal variant. B.Cu GND zone verified to cover full board. F.Cu GND zone added (solid pad connection). GND stitching vias placed across board to connect F.Cu islands to B.Cu plane. | DRC clean + Gerber export |
+| 2026-06-09 | Final DRC: 0 errors, 0 unconnected, 2 cosmetic silk warnings (U1 silkscreen clips board edge — JLCPCB trims automatically). Gerbers exported to hardware/pcb/v2/gerbers/ (10 layers + PTH.drl + NPTH.drl). ZIP created: posture_tracker_v2_gerbers.zip. Folder structure reorganised: KiCad source stays in hardware/kicad/, canonical fab outputs in hardware/pcb/v2/. | JLCPCB order |

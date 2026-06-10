@@ -18,9 +18,9 @@ hardware/
 
 | Folder | Status | Notes |
 |---|---|---|
-| datasheets | 🔄 In progress | 4 of 9 downloaded — see datasheets/README.md |
-| kicad | 🔄 In progress | Project created, Block 1 (Power) schematic complete |
-| schematics | ⬜ Not started | Export PDF when schematic is complete |
-| pcb | ⬜ Not started | Waiting on schematic complete + DRC clean |
-| enclosure | ⬜ Not started | Waiting on PCB dimensions confirmed |
-| bom | ✅ Master BOM started | Update as parts confirmed |
+| datasheets | ✅ Done | All component datasheets present — see datasheets/README.md |
+| kicad | ✅ Complete | Schematic (ERC clean) + PCB layout (DRC clean) + Gerbers exported |
+| schematics | ✅ Done | Exported PDF at `schematics/posture_tracker_v2_v2.pdf` |
+| pcb | ✅ Gerbers ready | `pcb/v2/gerbers/` — 12 files + ZIP ready for JLCPCB upload |
+| enclosure | ⬜ Not started | Waiting on PCB prototypes received (Phase 10) |
+| bom | ✅ Master BOM started | Update as parts ordered for Phase 10 |
